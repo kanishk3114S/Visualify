@@ -1,0 +1,6 @@
+flowchart TD
+  A[Client Browser] -->|HTTPS POST /generate| B[Express API]
+  B -->|Validate Prompt| C{Valid Input?}
+  C -->|Yes| D[Gemini Learning Planner]
+  C -->|No| E[Return 400 Error]
+  D -->|Mermaid / Direct Spec| F[Excalidraw Scene]
