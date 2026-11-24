@@ -15,7 +15,7 @@ All `process.env` and `import.meta.env` references across the Phase 0 codebase w
   2. `GEMINI_MODEL` (`backend/worker/src/config/env.js`, `backend/worker/src/services/geminiPlanner.js`)
   3. `EXCALIDRAW_BROWSER_PATH` (`backend/worker/src/config/env.js`, `backend/worker/src/renderer/cliRenderer.js`)
   4. `CLI_RENDER_TIMEOUT_MS` (`backend/worker/src/config/env.js`)
-- **Git Status:** Workspace is not currently initialized as a Git repository (`git status` returns `fatal: not a git repository`), so `git ls-files` and `git check-ignore` could not execute; `.gitignore` rules and secret checks were verified directly on disk.
+- **Git Status:** Verified existing Git repository at project root (`Visualizer`). `git status --short --ignored` confirms `backend/worker/.env.local`, `node_modules/`, `frontend/dist/`, `renders/`, and `test-results/` are ignored (`!!`), `git ls-files` confirms `40` tracked files with `.env.local` untracked/ignored, and `git check-ignore -v` verified ignore/tracking behavior across `.env*`, `renders/`, `temp/`, `dist/`, `frontend/public/favicon.svg`, `frontend/src/assets/`, `fixtures/mermaid/`, and `docs/spikes/`.
 
 ---
 
@@ -59,4 +59,6 @@ Both files are retained as documented placeholders containing **0 active variabl
    ```
    Set `GEMINI_API_KEY` to a real Google AI Studio key and verify `EXCALIDRAW_BROWSER_PATH` for your OS (Windows Chrome/Edge, Linux/WSL `/usr/bin/chromium`, macOS `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`).
 2. **Loader Behavior:** `backend/worker/src/config/env.js` explicitly loads `backend/worker/.env.local` using `import.meta.dirname`, so `npm run spike:gemini` and `npm test` resolve variables identically regardless of working directory.
-3. **Frontend Bundle Secret Audit:** Built `frontend/dist/` and scanned all generated assets. Zero Visualify secrets (`GEMINI_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, or user keys) appear in `frontend/dist/`. (One upstream `REACT_APP_FIREBASE_CONFIG` string exists inside `@excalidraw/excalidraw` itself for Excalidraw.com's public relay.)
+3. **Tracked & Frontend Bundle Secret Audit:**
+   - Scanned all `40` Git-tracked text files (`git ls-files`) for real API keys/service-role credentials: `0` real secret patterns found (`backend/worker/.env.local` is untracked and ignored by Git).
+   - Built `frontend/dist/` and scanned all generated assets. Zero Visualify secrets (`GEMINI_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, or user keys) appear in `frontend/dist/`. (One upstream `REACT_APP_FIREBASE_CONFIG` string exists inside `@excalidraw/excalidraw` itself for Excalidraw.com's public relay.)

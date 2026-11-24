@@ -24,7 +24,7 @@ test.describe("Phase 0: React + Excalidraw Editor Spike", () => {
       }
     });
 
-    await page.goto("/");
+    await page.goto("/spike/excalidraw");
     await page.waitForTimeout(1500);
     expect(pageErrors, `Page errors: ${pageErrors.join(" | ")}`).toEqual([]);
     expect(
