@@ -195,8 +195,33 @@ export async function convertMermaidToExcalidraw({
   }
 }
 
+/** Reads pixel dimensions from a PNG IHDR chunk or an SVG width/height/viewBox. */
+export function imageDimensions(buffer, format) {
+  if (format === "png" && buffer.length >= 24) {
+    return { width: buffer.readUInt32BE(16), height: buffer.readUInt32BE(20) };
+  }
+  if (format === "svg") {
+    const tag = /<svg\b[^>]*>/i.exec(buffer.subarray(0, 8192).toString("utf8"))?.[0] ?? "";
+    const attr = (name) => {
+      const m = new RegExp(`\\s${name}="([0-9.]+)`, "i").exec(tag);
+      return m ? Math.round(Number(m[1])) : null;
+    };
+    let width = attr("width");
+    let height = attr("height");
+    const vb = /viewBox="[-0-9.]+[\s,]+[-0-9.]+[\s,]+([0-9.]+)[\s,]+([0-9.]+)"/i.exec(tag);
+    if ((!width || !height) && vb) {
+      width = Math.round(Number(vb[1]));
+      height = Math.round(Number(vb[2]));
+    }
+    return { width: width || null, height: height || null };
+  }
+  return { width: null, height: null };
+}
+
 /**
  * Renders an Excalidraw scene JSON object to PNG or SVG via @excalidraw/cli.
+ * theme: "light" | "dark" export theme (independent of the app theme);
+ * transparent: export without a background.
  */
 export async function renderScene({
   sceneJson,
@@ -204,6 +229,8 @@ export async function renderScene({
   browserPath,
   timeoutMs = getCliRenderTimeoutMs(),
   scale = 1,
+  theme,
+  transparent = false,
   signal,
   cliScriptPath,
   execFn,
@@ -245,6 +272,13 @@ export async function renderScene({
     if (format === "png" && scale !== 1) {
       args.push("--scale", String(scale));
     }
+    if (theme !== undefined) {
+      if (theme !== "light" && theme !== "dark") {
+        throw new CliRendererError(`Unsupported render theme: ${theme}`, { code: "UNSUPPORTED_THEME" });
+      }
+      args.push("--theme", theme);
+    }
+    if (transparent) args.push("--transparent");
 
     await runCliCommand({
       cliScriptPath: resolvedCli,
@@ -276,6 +310,7 @@ export async function renderScene({
     return {
       buffer,
       format,
+      ...imageDimensions(buffer, format),
       bytes: buffer.length,
       latencyMs: Date.now() - startedAt,
       browserPath: resolvedBrowser,

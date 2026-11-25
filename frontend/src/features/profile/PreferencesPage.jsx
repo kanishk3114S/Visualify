@@ -9,6 +9,7 @@ import { Spinner } from "../../components/Spinner.jsx";
 import { useToast } from "../../components/Toast.jsx";
 import { useProfile, useUpdateProfile } from "../../hooks/useProfile.js";
 import { preferencesSchema } from "../../lib/schemas.js";
+import { useTheme } from "../../app/ThemeContext.jsx";
 
 const LEVELS = [
   ["school", "School"],
@@ -22,7 +23,14 @@ const FORMATS = [
   ["excalidraw", "Excalidraw file (.excalidraw)"],
 ];
 
+const THEMES = [
+  ["system", "Match my device"],
+  ["light", "Light"],
+  ["dark", "Dark"],
+];
+
 const toValues = (p) => ({
+  theme: ["light", "dark", "system"].includes(p?.preferences?.theme) ? p.preferences.theme : "system",
   learningLevel: p?.preferences?.learningLevel ?? "undergraduate",
   defaultExportFormat: p?.preferences?.defaultExportFormat ?? "png",
 });
@@ -31,6 +39,7 @@ export function PreferencesPage() {
   const { data: profile, isPending, isError, error, refetch } = useProfile();
   const update = useUpdateProfile();
   const toast = useToast();
+  const { setMode } = useTheme();
   const {
     register,
     handleSubmit,
@@ -48,6 +57,8 @@ export function PreferencesPage() {
       { preferences: values },
       {
         onSuccess: (saved) => {
+          // Apply the theme right away (saved to the profile in the same request).
+          if (saved.preferences?.theme) setMode(saved.preferences.theme);
           reset(toValues(saved));
           toast.success("Preferences saved.");
         },
@@ -59,7 +70,7 @@ export function PreferencesPage() {
   return (
     <>
       <BackToSettings />
-      <PageHeader title="Preferences" description="Defaults for the visual notes you'll create." />
+      <PageHeader title="Preferences" description="Appearance and defaults for your visual notes." />
       {isPending && <Spinner label="Loading preferences" className="text-accent-700" />}
       {isError && <ProfileLoadError onRetry={refetch} error={error} />}
       {profile && (
@@ -67,10 +78,16 @@ export function PreferencesPage() {
           <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-5" aria-label="Preferences">
             <FormAlert>{errors.root?.server?.message}</FormAlert>
             <FormAlert tone="info">
-              These defaults are saved to your account now and will be applied when visual note creation and exports
-              launch.
+              Your learning level pre-fills the Create form and your export format is preselected when you export a note.
             </FormAlert>
             <div className="grid gap-5 sm:grid-cols-2">
+              <SelectField label="Theme" hint="Applies to the whole app. Exported diagrams have their own theme option." error={errors.theme?.message} {...register("theme")}>
+                {THEMES.map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </SelectField>
               <SelectField label="Learning level" hint="Sets how detailed explanations are." error={errors.learningLevel?.message} {...register("learningLevel")}>
                 {LEVELS.map(([value, label]) => (
                   <option key={value} value={value}>

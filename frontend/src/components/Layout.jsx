@@ -1,3 +1,4 @@
+import { forwardRef } from "react";
 import { Link } from "react-router-dom";
 import clsx from "clsx";
 import { ArrowLeft } from "lucide-react";
@@ -17,13 +18,13 @@ export function Logo({ to = "/", className }) {
 }
 
 /** White content card. */
-export function Card({ as: Tag = "section", className, children, ...props }) {
+export const Card = forwardRef(function Card({ as: Tag = "section", className, children, ...props }, ref) {
   return (
-    <Tag className={clsx("rounded-xl border border-stone-200 bg-white shadow-xs", className)} {...props}>
+    <Tag ref={ref} className={clsx("rounded-xl border border-stone-200 bg-surface shadow-xs", className)} {...props}>
       {children}
     </Tag>
   );
-}
+});
 
 /** Page heading block used at the top of every app page. */
 export function PageHeader({ title, description, actions }) {
@@ -39,14 +40,14 @@ export function PageHeader({ title, description, actions }) {
 }
 
 /** Small status pill, e.g. "Available now" / "Coming later". */
-export function Badge({ tone = "neutral", children }) {
+export function Badge({ tone = "neutral", className, children, ...props }) {
   const tones = {
     neutral: "bg-stone-100 text-stone-700 ring-stone-200",
     accent: "bg-accent-50 text-accent-800 ring-accent-100",
     soon: "bg-amber-50 text-amber-900 ring-amber-200",
   };
   return (
-    <span className={clsx("inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset", tones[tone])}>
+    <span className={clsx("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset", tones[tone], className)} {...props}>
       {children}
     </span>
   );

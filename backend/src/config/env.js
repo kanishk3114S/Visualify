@@ -20,6 +20,7 @@ export function loadEnvFiles() {
 }
 
 const MAX_AVATAR_BYTES_CEILING = 5 * 1024 * 1024;
+const MAX_SOURCE_BYTES_CEILING = 20 * 1024 * 1024;
 
 const originSchema = z.string().transform((value, ctx) => {
   const origins = value
@@ -74,6 +75,9 @@ const envSchema = z.object({
   CLI_RENDER_TIMEOUT_MS: z.coerce.number().int().min(1000).max(120000).default(30000),
   AVATAR_MAX_BYTES: z.coerce.number().int().min(1024).max(MAX_AVATAR_BYTES_CEILING).default(2097152),
   AVATAR_SIGNED_URL_TTL_SECONDS: z.coerce.number().int().min(30).max(3600).default(300),
+  SOURCE_MAX_BYTES: z.coerce.number().int().min(1024).max(MAX_SOURCE_BYTES_CEILING).default(20971520),
+  SOURCE_MAX_PDF_PAGES: z.coerce.number().int().min(1).max(500).default(100),
+  SOURCE_SIGNED_URL_TTL_SECONDS: z.coerce.number().int().min(30).max(3600).default(300),
   TRUST_PROXY: booleanString,
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"]).optional(),
 });
@@ -102,6 +106,9 @@ export function loadConfig(env = process.env) {
     supabasePublishableKey: e.SUPABASE_PUBLISHABLE_KEY,
     avatarMaxBytes: e.AVATAR_MAX_BYTES,
     avatarSignedUrlTtlSeconds: e.AVATAR_SIGNED_URL_TTL_SECONDS,
+    sourceMaxBytes: e.SOURCE_MAX_BYTES,
+    sourceMaxPdfPages: e.SOURCE_MAX_PDF_PAGES,
+    sourceSignedUrlTtlSeconds: e.SOURCE_SIGNED_URL_TTL_SECONDS,
     trustProxy: e.TRUST_PROXY,
     supabaseServiceRoleKey: isConfigured(e.SUPABASE_SERVICE_ROLE_KEY) ? e.SUPABASE_SERVICE_ROLE_KEY : null,
     generation: Object.freeze({

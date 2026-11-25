@@ -21,10 +21,6 @@ export function sanitizeMermaidId(raw) {
   return cleaned ? `n_${cleaned}` : "n_item";
 }
 
-/**
- * Produces a clean Mermaid identifier for ER entities/attributes and class names
- * without noisy "n_" prefixes when the token already starts with a letter.
- */
 function cleanIdentifierToken(raw, fallback = "item") {
   const cleaned = String(raw ?? "")
     .trim()
@@ -46,7 +42,8 @@ function sanitizeMethodSignature(raw) {
 }
 
 /**
- * Deterministically builds Mermaid source text from a validated diagramSpec.
+ * Deterministically builds Mermaid source text from a validated diagramSpec
+ * with semantic shapes and classDef color classes where supported.
  */
 export function buildMermaidSource(diagramSpec) {
   if (!diagramSpec || typeof diagramSpec !== "object") {
@@ -58,12 +55,44 @@ export function buildMermaidSource(diagramSpec) {
       const direction = diagramSpec.direction === "LR" ? "LR" : "TD";
       const lines = [`flowchart ${direction}`];
       const idMap = new Map();
+      const inDegree = new Map();
+      const outDegree = new Map();
 
       for (const node of diagramSpec.nodes) {
+        inDegree.set(node.id, 0);
+        outDegree.set(node.id, 0);
+      }
+      for (const edge of diagramSpec.edges) {
+        outDegree.set(edge.from, (outDegree.get(edge.from) ?? 0) + 1);
+        inDegree.set(edge.to, (inDegree.get(edge.to) ?? 0) + 1);
+      }
+
+      const roleClasses = { core: [], decision: [], branchA: [], branchB: [], outcome: [] };
+
+      for (let i = 0; i < diagramSpec.nodes.length; i++) {
+        const node = diagramSpec.nodes[i];
         const safeId = sanitizeMermaidId(node.id);
         idMap.set(node.id, safeId);
         const label = sanitizeMermaidLabel(node.label);
-        lines.push(`  ${safeId}["${label}"]`);
+        const ins = inDegree.get(node.id) ?? 0;
+        const outs = outDegree.get(node.id) ?? 0;
+        const isDecision = label.endsWith("?") || outs >= 2;
+        const isStart = i === 0 || (ins === 0 && outs > 0);
+        const isOutcome = outs === 0 && ins > 0;
+
+        if (isDecision) {
+          lines.push(`  ${safeId}{"${label}"}`);
+          roleClasses.decision.push(safeId);
+        } else if (isStart) {
+          lines.push(`  ${safeId}(["${label}"])`);
+          roleClasses.core.push(safeId);
+        } else if (isOutcome) {
+          lines.push(`  ${safeId}(["${label}"])`);
+          roleClasses.outcome.push(safeId);
+        } else {
+          lines.push(`  ${safeId}["${label}"]`);
+          (i % 2 === 0 ? roleClasses.branchA : roleClasses.branchB).push(safeId);
+        }
       }
 
       for (const edge of diagramSpec.edges) {
@@ -76,11 +105,20 @@ export function buildMermaidSource(diagramSpec) {
           lines.push(`  ${fromId} --> ${toId}`);
         }
       }
+
+      lines.push("  classDef core fill:#ccfbf1,stroke:#0f766e,stroke-width:2px,color:#0f172a");
+      lines.push("  classDef branchA fill:#e0e7ff,stroke:#3730a3,stroke-width:2px,color:#0f172a");
+      lines.push("  classDef branchB fill:#d1fae5,stroke:#047857,stroke-width:2px,color:#0f172a");
+      lines.push("  classDef decision fill:#fef3c7,stroke:#b45309,stroke-width:2px,color:#0f172a");
+      lines.push("  classDef outcome fill:#ffe4e6,stroke:#be123c,stroke-width:2px,color:#0f172a");
+      for (const [cls, ids] of Object.entries(roleClasses)) {
+        if (ids.length) lines.push(`  class ${ids.join(",")} ${cls}`);
+      }
       return lines.join("\n");
     }
 
     case "sequence": {
-      const lines = ["sequenceDiagram"];
+      const lines = ["sequenceDiagram", "  autonumber"];
       const idMap = new Map();
 
       for (const p of diagramSpec.participants) {

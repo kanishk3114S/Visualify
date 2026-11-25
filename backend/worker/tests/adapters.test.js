@@ -44,8 +44,10 @@ describe("Adapters & Scene Validation", () => {
       edges: [{ from: "a", to: "b", label: "go" }],
     });
     expect(flow).toContain("flowchart LR");
-    expect(flow).toContain('n_a["Start"]');
+    expect(flow).toContain('n_a(["Start"])');
+    expect(flow).toContain('n_b(["End"])');
     expect(flow).toContain('n_a -->|"go"| n_b');
+    expect(flow).toContain("classDef core");
 
     const seq = buildMermaidSource({
       kind: "sequence",
@@ -114,7 +116,46 @@ describe("Adapters & Scene Validation", () => {
     const validation = validateExcalidrawScene(scene);
     expect(validation.valid, validation.errors.join("; ")).toBe(true);
     const rects = scene.elements.filter((e) => e.type === "rectangle");
-    expect(rects.length).toBe(6);
+    // 2 headers + 4 item cards + 1 Key Takeaway callout banner
+    expect(rects.length).toBe(7);
+    expect(scene.elements.some((e) => e.type === "ellipse")).toBe(true);
+    expect(scene.elements.some((e) => e.type === "text" && e.text.includes("Key Takeaway"))).toBe(true);
+
+    // Every box label is container-bound so dragging keeps text attached
+    const boundTexts = scene.elements.filter((e) => e.type === "text" && e.containerId);
+    expect(boundTexts.length).toBeGreaterThanOrEqual(7);
+  });
+
+  it("threads visualStyle presets into direct adapters and styleConvertedScene", async () => {
+    const { styleConvertedScene } = await import("../src/adapters/diagramTheme.js");
+    const editorial = buildMindmapScene(
+      {
+        kind: "mindmap",
+        root: { id: "r", label: "Root" },
+        branches: [
+          { id: "b1", label: "One", children: [{ id: "c1", label: "Leaf" }] },
+          { id: "b2", label: "Two", children: [{ id: "c2", label: "Leaf 2" }] },
+        ],
+      },
+      { visualStyle: "editorial_color" }
+    );
+    const rootRect = editorial.elements.find((e) => e.id.startsWith("mm-root"));
+    expect(rootRect.roughness).toBe(0);
+    expect(rootRect.boundElements.some((b) => b.type === "text")).toBe(true);
+    expect(rootRect.boundElements.some((b) => b.type === "arrow")).toBe(true);
+
+    const minimal = styleConvertedScene(
+      {
+        elements: [
+          { id: "r1", type: "rectangle", x: 0, y: 0, width: 100, height: 50, backgroundColor: "#ffffff", strokeColor: "#000000", boundElements: [{ id: "t1", type: "text" }] },
+          { id: "t1", type: "text", x: 10, y: 10, width: 80, height: 20, text: "Node", containerId: "r1", strokeColor: "#000000" },
+        ],
+      },
+      { visualStyle: "minimal", kind: "flowchart" }
+    );
+    expect(minimal.elements[0].roughness).toBe(0);
+    expect(minimal.elements[0].fillStyle).toBe("solid");
+    expect(minimal.elements[1].strokeColor).toBe("#0f172a");
   });
 
   it("rejects scenes with empty elements, duplicate IDs, or dangling arrow bindings", () => {

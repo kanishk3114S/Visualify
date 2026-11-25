@@ -1,7 +1,23 @@
-/** Job state machine (PRD 11.2), mirrored by the CHECK constraint in 0003. */
-export const ACTIVE_STATUSES = Object.freeze(["queued", "validating", "planning", "composing", "rendering", "persisting", "cancelling"]);
+/** Job state machine (PRD 11.2), mirrored by the CHECK constraint in 0003 + 0006. */
+export const ACTIVE_STATUSES = Object.freeze([
+  "queued",
+  "validating",
+  "extracting",
+  "planning",
+  "composing",
+  "rendering",
+  "persisting",
+  "cancelling",
+]);
 export const TERMINAL_STATUSES = Object.freeze(["completed", "failed", "cancelled"]);
-export const RUNNING_STATUSES = Object.freeze(["validating", "planning", "composing", "rendering", "persisting"]);
+export const RUNNING_STATUSES = Object.freeze([
+  "validating",
+  "extracting",
+  "planning",
+  "composing",
+  "rendering",
+  "persisting",
+]);
 
 export const isActive = (status) => ACTIVE_STATUSES.includes(status);
 export const isTerminal = (status) => TERMINAL_STATUSES.includes(status);
@@ -10,8 +26,9 @@ export const isTerminal = (status) => TERMINAL_STATUSES.includes(status);
 export const STAGE_PROGRESS = Object.freeze({
   queued: 0,
   validating: 5,
-  planning: 12,
-  composing: 62,
+  extracting: 12,
+  planning: 22,
+  composing: 65,
   persisting: 92,
   completed: 100,
 });
@@ -34,6 +51,13 @@ const SAFE_ERRORS = {
   SCHEMA_VALIDATION_FAILED: ["INVALID_PLAN", "We couldn't build a valid visual plan for this topic. Please try again or rephrase it."],
   COMPOSE_FAILED: ["RENDER_FAILED", "We couldn't draw a diagram for this topic. Please try again or rephrase it."],
   INTERRUPTED: ["INTERRUPTED", "This generation was interrupted before it finished. Please retry."],
+  CORRUPT_FILE: ["CORRUPT_FILE", "This file could not be read. Try uploading a clean PDF or image."],
+  ENCRYPTED_PDF: ["ENCRYPTED_PDF", "This PDF is password-protected. Remove the password and upload it again."],
+  PAGE_LIMIT_EXCEEDED: ["PAGE_LIMIT_EXCEEDED", "Too many PDF pages were selected. Select up to 100 pages and try again."],
+  INVALID_PAGE_RANGE: ["INVALID_PAGE_RANGE", "The selected page range is outside this PDF's page count."],
+  EMPTY_SOURCE: ["EMPTY_SOURCE", "No readable text or visual content was found in this file."],
+  EXTRACTION_FAILED: ["EXTRACTION_FAILED", "We couldn't extract content from this file. Please try another file."],
+  SOURCE_NOT_FOUND: ["SOURCE_NOT_FOUND", "The uploaded source file could not be found. Please upload it again."],
 };
 
 export function toSafeError(err) {

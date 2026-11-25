@@ -65,6 +65,7 @@ export const profileSchema = z.object({
 });
 
 export const preferencesSchema = z.object({
+  theme: z.enum(["light", "dark", "system"]),
   learningLevel: z.enum(["school", "undergraduate", "postgraduate", "professional"]),
   defaultExportFormat: z.enum(["png", "svg", "excalidraw"]),
 });
@@ -79,9 +80,10 @@ export function validateAvatarFile(file) {
 }
 
 // ---------------------------------------------------------------------------
-// Generation (Phase 2) - mirrors backend/src/schemas/generation.schema.js
+// Generation (Phase 2 + Phase 4) - mirrors backend/src/schemas/generation.schema.js
 // ---------------------------------------------------------------------------
 export const PROMPT_MAX_CHARS = 8000;
+export const GUIDANCE_MAX_CHARS = 2000;
 
 export const GENERATION_OPTIONS = Object.freeze({
   audienceLevel: [
@@ -97,6 +99,7 @@ export const GENERATION_OPTIONS = Object.freeze({
   ],
   visualStyle: [
     ["hand_drawn_clean", "Hand-drawn, clean"],
+    ["editorial_color", "Editorial, crisp"],
     ["minimal", "Minimal labels"],
   ],
   preferredOutput: [
@@ -126,8 +129,33 @@ export const generationRequestSchema = z.object({
   preferredOutput: z.enum(optionValues("preferredOutput")),
 });
 
-/** Form values -> POST /api/v1/generations body. */
+export const sourceGenerationSchema = z.object({
+  prompt: z
+    .string()
+    .trim()
+    .max(GUIDANCE_MAX_CHARS, `Use at most ${GUIDANCE_MAX_CHARS.toLocaleString("en-US")} characters.`),
+  subject: z.string().trim().max(120, "Use at most 120 characters."),
+  audienceLevel: z.enum(optionValues("audienceLevel")),
+  detail: z.enum(optionValues("detail")),
+  visualStyle: z.enum(optionValues("visualStyle")),
+  preferredOutput: z.enum(optionValues("preferredOutput")),
+});
+
+/** Form values -> POST /api/v1/generations body (prompt mode). */
 export function toGenerationBody(values) {
   const { prompt, ...settings } = values;
   return { inputType: "prompt", prompt: prompt.trim(), settings: { ...settings, subject: settings.subject.trim() } };
+}
+
+/** Form values + uploaded source -> POST /api/v1/generations body (pdf/image mode). */
+export function toSourceGenerationBody({ inputType, sourceFileId, pageRange = null, values }) {
+  const { prompt = "", ...settings } = values;
+  const cleanPrompt = prompt.trim();
+  return {
+    inputType,
+    sourceFileId,
+    ...(cleanPrompt ? { prompt: cleanPrompt } : {}),
+    ...(inputType === "pdf" && pageRange ? { pageRange } : {}),
+    settings: { ...settings, subject: settings.subject.trim() },
+  };
 }

@@ -141,3 +141,50 @@ export const generationsApi = {
     await readSseStream(response.body, onEvent, { signal });
   },
 };
+
+const notePath = (id) => `/notes/${encodeURIComponent(id)}`;
+
+export const notesApi = {
+  list: (query, { signal } = {}) => apiRequest(`/notes${query ? `?${query}` : ""}`, { signal }),
+  get: (id, { signal } = {}) => apiRequest(notePath(id), { signal }),
+  createFromJob: (body) => apiRequest("/notes", { method: "POST", body }),
+  update: (id, patch) => apiRequest(notePath(id), { method: "PATCH", body: patch }).then((d) => d.note),
+  duplicate: (id, body = {}) => apiRequest(`${notePath(id)}/duplicate`, { method: "POST", body }).then((d) => d.note),
+  remove: (id) => apiRequest(notePath(id), { method: "DELETE" }),
+  versions: (id, { signal } = {}) => apiRequest(`${notePath(id)}/versions`, { signal }).then((d) => d.items),
+  version: (id, versionId, { signal } = {}) =>
+    apiRequest(`${notePath(id)}/versions/${encodeURIComponent(versionId)}`, { signal }).then((d) => d.version),
+  snapshot: (id, body) => apiRequest(`${notePath(id)}/versions`, { method: "POST", body }),
+  restore: (id, versionId) => apiRequest(`${notePath(id)}/restore/${encodeURIComponent(versionId)}`, { method: "POST" }),
+  saveDraft: (id, body, { signal } = {}) => apiRequest(`${notePath(id)}/draft`, { method: "PUT", body, signal }),
+  exportNote: (id, body) => apiRequest(`${notePath(id)}/exports`, { method: "POST", body }).then((d) => d.export),
+  study: (id, { signal } = {}) => apiRequest(`${notePath(id)}/study`, { signal }),
+  explain: (id, body) => apiRequest(`${notePath(id)}/explain`, { method: "POST", body }),
+  createQuiz: (id, body = {}) => apiRequest(`${notePath(id)}/quiz`, { method: "POST", body }).then((d) => d.quiz),
+  submitQuiz: (id, quizId, answers) =>
+    apiRequest(`${notePath(id)}/quiz/${encodeURIComponent(quizId)}`, { method: "PATCH", body: { answers } }).then((d) => d.quiz),
+  createFlashcards: (id, body = {}) => apiRequest(`${notePath(id)}/flashcards`, { method: "POST", body }).then((d) => d.items),
+  updateFlashcard: (id, cardId, mastery) =>
+    apiRequest(`${notePath(id)}/flashcards/${encodeURIComponent(cardId)}`, { method: "PATCH", body: { mastery } }).then((d) => d.flashcard),
+  createRevision: (id) => apiRequest(`${notePath(id)}/revision`, { method: "POST" }).then((d) => d.revisionGuide),
+  ask: (id, question) => apiRequest(`${notePath(id)}/ask`, { method: "POST", body: { question } }),
+  regenerateSection: (id, sectionId, body) =>
+    apiRequest(`${notePath(id)}/sections/${encodeURIComponent(sectionId)}/regenerate`, { method: "POST", body }),
+};
+
+export const sourcesApi = {
+  upload: (file, { signal } = {}) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    return apiRequest("/sources/upload", { method: "POST", formData, signal }).then((d) => d.sourceFile);
+  },
+  get: (id, { signal } = {}) => apiRequest(`/sources/${encodeURIComponent(id)}`, { signal }).then((d) => d.sourceFile),
+  remove: (id) => apiRequest(`/sources/${encodeURIComponent(id)}`, { method: "DELETE" }),
+};
+
+export const foldersApi = {
+  list: ({ signal } = {}) => apiRequest("/folders", { signal }).then((d) => d.items),
+  create: (body) => apiRequest("/folders", { method: "POST", body }).then((d) => d.folder),
+  update: (id, patch) => apiRequest(`/folders/${encodeURIComponent(id)}`, { method: "PATCH", body: patch }).then((d) => d.folder),
+  remove: (id) => apiRequest(`/folders/${encodeURIComponent(id)}`, { method: "DELETE" }),
+};

@@ -8,7 +8,8 @@ test.describe("Phase 1: public pages", () => {
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(/visual notes you can edit/i);
     await expect(page.getByRole("link", { name: "Create a free account" })).toHaveAttribute("href", "/signup");
     await expect(page.getByRole("link", { name: "Sign in" })).toBeVisible();
-    await expect(page.getByRole("img", { name: /TCP three-way handshake/ })).toBeVisible();
+    await expect(page.getByTestId("landing-showcase")).toBeVisible();
+    await expect(page.getByTestId("showcase-callout")).toContainText("Client:");
     await page.waitForLoadState("networkidle");
     expect(errors).toEqual([]);
   });
@@ -27,7 +28,7 @@ test.describe("Phase 1: public pages", () => {
     }
     // Release policy: unreleased features are labelled, not advertised as available.
     await page.goto("/features");
-    await expect(page.getByText("Available now")).toHaveCount(4);
+    await expect(page.getByText("Available now")).toHaveCount(9);
     expect(errors).toEqual([]);
   });
 
@@ -159,7 +160,7 @@ test.describe("Phase 1: authenticated shell and profile (mocked API)", () => {
     await page.goto("/app");
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(/Ada Student$/);
     await expect(page.getByTestId("shell-user-name")).toHaveText("Ada Student");
-    await expect(page.getByLabel("My Notes (coming later)")).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "My Notes" })).toHaveAttribute("href", "/app/notes");
     const meCall = api.calls.find((c) => c.path === "/api/v1/me");
     expect(meCall.auth).toMatch(/^Bearer eyJ/);
     expect(meCall.requestId).toMatch(/^web_[0-9a-f]{32}$/);
@@ -252,7 +253,7 @@ test.describe("Phase 1: authenticated shell and profile (mocked API)", () => {
     await page.getByRole("button", { name: "Save preferences" }).click();
     await expect(page.getByText("Preferences saved.")).toBeVisible();
     expect(api.calls.find((c) => c.method === "PATCH").body).toEqual({
-      preferences: { learningLevel: "postgraduate", defaultExportFormat: "png" },
+      preferences: { theme: "light", learningLevel: "postgraduate", defaultExportFormat: "png" },
     });
   });
 

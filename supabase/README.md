@@ -1,13 +1,21 @@
-# Visualify — Supabase setup (Phase 1)
+# Visualify — Supabase setup
 
-Everything Supabase needs for Phase 1 lives here:
+Everything Supabase needs for Phases 1–5 lives here:
 
 | File | Purpose |
 | :--- | :--- |
 | `migrations/0001_profiles_and_rls.sql` | `public.profiles`, `set_updated_at` trigger, `handle_new_user` signup trigger, grants, RLS policies, backfill for existing users |
 | `migrations/0002_avatars_storage_bucket.sql` | Private `avatars` bucket (2 MiB, jpeg/png/webp) and `storage.objects` policies scoped to `{uid}/avatar-{uuid}.webp` |
 | `migrations/0003_generation_jobs.sql` | Phase 2 `generation_jobs`: owner-scoped RLS, one active job per user (partial unique index), clients may only create/read/cancel; results are written server-side |
-| `tests/rls.pglite.test.js` | **Offline** verification of the migrations on real Postgres (PGlite) — no credentials needed |
+| `migrations/0004_folders_notes_versions_exports.sql` | Phase 3 `folders`, `notes`, `note_versions` (immutable), `note_drafts`, `note_exports`, `generation_jobs.note_id`, composite owner FKs, folder cycle/depth triggers, atomic `SECURITY INVOKER` RPCs |
+| `migrations/0005_note_storage_buckets.sql` | Private `note-assets` (5 MiB PNG previews) and `note-exports` (25 MiB PNG/SVG/JSON) buckets scoped to `{uid}/{noteId}/...` |
+| `migrations/0006_source_files.sql` | Phase 4 `public.source_files` table, RLS policies, `generation_jobs` source columns & `extracting` status, `notes.source_type`, `link_source_file_to_note`, and updated note RPCs |
+| `migrations/0007_source_files_bucket.sql` | Private `source-files` bucket (20 MiB limit for PDF, JPEG, PNG, WebP) scoped to `{uid}/{sourceFileId}/...` |
+| `migrations/0008_learning_companion.sql` | Phase 5 `note_quizzes`, `note_flashcards`, `note_revision_guides`, `usage_events`, `note_exports` (`zip`, `scope`, `frame_id`), `note-exports` `application/zip` MIME allowlist, `'regenerate'` version kind |
+| `tests/rls.pglite.test.js` | **Offline** verification of Phases 1–2 migrations on real Postgres (PGlite) — no credentials needed |
+| `tests/notes.pglite.test.js` | **Offline** verification of Phase 3 migrations (`0004`, `0005`) on real Postgres (PGlite) |
+| `tests/sources.pglite.test.js` | **Offline** verification of Phase 4 migrations (`0006`, `0007`) on real Postgres (PGlite) |
+| `tests/learning_companion.pglite.test.js` | **Offline** verification of Phase 5 migration (`0008`) on real Postgres (PGlite) |
 | `tests/rls.live.test.js` | **Live** cross-user verification against a real dev/staging project |
 | `tests/supabase-stub.sql` | Minimal emulation of Supabase's `auth`/`storage` schemas used only by the offline test. **Never apply it to a real project.** |
 
@@ -33,7 +41,7 @@ npx supabase@latest db push
 
 **Option B — Dashboard SQL editor**
 
-Open *SQL Editor* → paste and run `0001_profiles_and_rls.sql`, then `0002_avatars_storage_bucket.sql`, then `0003_generation_jobs.sql` (Phase 2).
+Open *SQL Editor* → paste and run `0001_profiles_and_rls.sql`, then `0002_avatars_storage_bucket.sql`, then `0003_generation_jobs.sql` (Phase 2), then `0004_folders_notes_versions_exports.sql` and `0005_note_storage_buckets.sql` (Phase 3), then `0006_source_files.sql` and `0007_source_files_bucket.sql` (Phase 4), then `0008_learning_companion.sql` (Phase 5).
 
 **Check it worked** (SQL editor):
 
@@ -44,6 +52,9 @@ select id, public, file_size_limit from storage.buckets where id = 'avatars';   
 select tgname from pg_trigger where tgname = 'on_auth_user_created';                   -- 1 row
 select cmd from pg_policies where tablename = 'generation_jobs';                        -- 4 rows (0003)
 select indexname from pg_indexes where indexname = 'generation_jobs_one_active_per_owner'; -- 1 row (0003)
+select tablename, rowsecurity from pg_tables where schemaname = 'public'
+  and tablename in ('folders', 'notes', 'note_versions', 'note_drafts', 'note_exports', 'source_files', 'note_quizzes', 'note_flashcards', 'note_revision_guides', 'usage_events'); -- 10 rows, true (0004 + 0006 + 0008)
+select id, public, file_size_limit, allowed_mime_types from storage.buckets where id in ('note-assets', 'note-exports', 'source-files'); -- public = false, includes application/zip on note-exports (0005 + 0007 + 0008)
 ```
 
 ## 3. Configure Auth URLs
@@ -90,7 +101,7 @@ Copy-Item backend\.env.example backend\.env.local
 ## 7. Verify
 
 ```powershell
-npm run test:rls:sql    # offline: 37 SQL checks on real Postgres (PGlite)
+npm run test:rls:sql    # offline: 62 SQL checks on real Postgres (PGlite)
 npm run test:rls:live   # live: creates two throwaway users, checks cross-user isolation, deletes them
 ```
 

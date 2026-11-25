@@ -1,3 +1,5 @@
+import { BRANCH_ROLES, SEMANTIC_PALETTE, resolveDiagramStyle, rolePaletteFor } from "./diagramTheme.js";
+
 let idCounter = 0;
 
 function nextId(prefix) {
@@ -39,8 +41,9 @@ function estimateTextMetrics(lines, fontSize) {
   };
 }
 
-function createRectangle({
-  id = nextId("rect"),
+function createShape({
+  type = "rectangle",
+  id = nextId(type === "ellipse" ? "ellipse" : "rect"),
   x,
   y,
   width,
@@ -49,12 +52,14 @@ function createRectangle({
   strokeColor = "#1e293b",
   fillStyle = "solid",
   strokeWidth = 2,
+  strokeStyle = "solid",
+  roughness = 1,
   roundness = { type: 3 },
   groupIds = [],
 }) {
   return {
     id,
-    type: "rectangle",
+    type,
     x,
     y,
     width,
@@ -64,12 +69,12 @@ function createRectangle({
     backgroundColor,
     fillStyle,
     strokeWidth,
-    strokeStyle: "solid",
-    roughness: 1,
+    strokeStyle,
+    roughness,
     opacity: 100,
     groupIds,
     frameId: null,
-    roundness,
+    roundness: type === "ellipse" ? { type: 2 } : roundness,
     seed: idCounter + 100,
     version: 1,
     versionNonce: idCounter + 1000,
@@ -89,9 +94,11 @@ function createText({
   height,
   text,
   fontSize = 18,
+  fontFamily = 1,
   strokeColor = "#0f172a",
   textAlign = "center",
   verticalAlign = "middle",
+  containerId = null,
   groupIds = [],
 }) {
   return {
@@ -107,7 +114,7 @@ function createText({
     fillStyle: "solid",
     strokeWidth: 1,
     strokeStyle: "solid",
-    roughness: 1,
+    roughness: 0,
     opacity: 100,
     groupIds,
     frameId: null,
@@ -122,37 +129,52 @@ function createText({
     locked: false,
     text,
     fontSize,
-    fontFamily: 1,
+    fontFamily,
     textAlign,
     verticalAlign,
-    containerId: null,
+    containerId,
     originalText: text,
     autoResize: true,
     lineHeight: 1.25,
   };
 }
 
+/**
+ * Creates a container shape with properly container-bound text so dragging the
+ * shape in Excalidraw keeps the label attached inside it.
+ */
 function createLabeledBox({
   idPrefix,
+  shapeType = "rectangle",
   x,
   y,
   minWidth = 180,
+  fixedWidth = null,
+  minHeight = 54,
   paddingX = 20,
   paddingY = 14,
   label,
   fontSize = 18,
+  fontFamily = 1,
   maxCharsPerLine = 24,
   backgroundColor = "#f8fafc",
   strokeColor = "#1e293b",
   textColor = "#0f172a",
+  fillStyle = "solid",
+  strokeWidth = 2,
+  strokeStyle = "solid",
+  roughness = 1,
+  textAlign = "center",
+  verticalAlign = "middle",
 }) {
   const lines = wrapText(label, maxCharsPerLine);
   const textContent = lines.join("\n");
   const metrics = estimateTextMetrics(lines, fontSize);
-  const width = Math.max(minWidth, metrics.width + paddingX * 2);
-  const height = Math.max(54, metrics.height + paddingY * 2);
+  const width = fixedWidth ?? Math.max(minWidth, metrics.width + paddingX * 2);
+  const height = Math.max(minHeight, metrics.height + paddingY * 2);
 
-  const rect = createRectangle({
+  const rect = createShape({
+    type: shapeType,
     id: nextId(idPrefix),
     x,
     y,
@@ -160,67 +182,108 @@ function createLabeledBox({
     height,
     backgroundColor,
     strokeColor,
+    fillStyle,
+    strokeWidth,
+    strokeStyle,
+    roughness,
   });
+
+  const textWidth = Math.min(width - paddingX, metrics.width);
+  const textX = textAlign === "left" ? x + paddingX : x + (width - textWidth) / 2;
+  const textY = y + (height - metrics.height) / 2;
 
   const textEl = createText({
     id: nextId(`${idPrefix}-lbl`),
-    x: x + (width - metrics.width) / 2,
-    y: y + (height - metrics.height) / 2,
-    width: metrics.width,
+    x: textX,
+    y: textY,
+    width: textWidth,
     height: metrics.height,
     text: textContent,
     fontSize,
+    fontFamily,
     strokeColor: textColor,
+    textAlign,
+    verticalAlign,
+    containerId: rect.id,
   });
 
+  rect.boundElements.push({ id: textEl.id, type: "text" });
   return { rect, textEl, width, height };
 }
 
-function connectBoxes({ fromBox, toBox, fromSide = "right", toSide = "left", strokeColor = "#475569" }) {
+function reparentTextToBox(box, textEl, { align = "center", paddingX = 16 } = {}) {
+  textEl.x = align === "left" ? box.x + paddingX : box.x + (box.width - textEl.width) / 2;
+  textEl.y = box.y + (box.height - textEl.height) / 2;
+}
+
+function connectBoxes({
+  fromBox,
+  toBox,
+  fromSide = "right",
+  toSide = "left",
+  strokeColor = "#475569",
+  strokeWidth = 2,
+  roughness = 1,
+  fontFamily = 1,
+  curved = true,
+  label = null,
+}) {
   const startX =
     fromSide === "right"
       ? fromBox.x + fromBox.width
       : fromSide === "left"
-      ? fromBox.x
-      : fromBox.x + fromBox.width / 2;
+        ? fromBox.x
+        : fromBox.x + fromBox.width / 2;
   const startY =
     fromSide === "bottom"
       ? fromBox.y + fromBox.height
       : fromSide === "top"
-      ? fromBox.y
-      : fromBox.y + fromBox.height / 2;
+        ? fromBox.y
+        : fromBox.y + fromBox.height / 2;
 
   const endX =
     toSide === "left"
       ? toBox.x
       : toSide === "right"
-      ? toBox.x + toBox.width
-      : toBox.x + toBox.width / 2;
+        ? toBox.x + toBox.width
+        : toBox.x + toBox.width / 2;
   const endY =
     toSide === "top"
       ? toBox.y
       : toSide === "bottom"
-      ? toBox.y + toBox.height
-      : toBox.y + toBox.height / 2;
+        ? toBox.y + toBox.height
+        : toBox.y + toBox.height / 2;
 
   const dx = endX - startX;
   const dy = endY - startY;
   const arrowId = nextId("arrow");
+
+  const points =
+    curved && Math.abs(dy) > 12 && Math.abs(dx) > 24
+      ? [
+          [0, 0],
+          [Math.round(dx * 0.5), Math.round(dy * 0.15)],
+          [dx, dy],
+        ]
+      : [
+          [0, 0],
+          [dx, dy],
+        ];
 
   const arrow = {
     id: arrowId,
     type: "arrow",
     x: startX,
     y: startY,
-    width: Math.abs(dx),
-    height: Math.abs(dy),
+    width: Math.max(1, Math.abs(dx)),
+    height: Math.max(1, Math.abs(dy)),
     angle: 0,
     strokeColor,
     backgroundColor: "transparent",
     fillStyle: "solid",
-    strokeWidth: 2,
+    strokeWidth,
     strokeStyle: "solid",
-    roughness: 1,
+    roughness,
     opacity: 100,
     groupIds: [],
     frameId: null,
@@ -229,17 +292,14 @@ function connectBoxes({ fromBox, toBox, fromSide = "right", toSide = "left", str
     version: 1,
     versionNonce: idCounter + 3000,
     isDeleted: false,
-    boundElements: null,
+    boundElements: [],
     updated: 1,
     link: null,
     locked: false,
-    points: [
-      [0, 0],
-      [dx, dy],
-    ],
+    points,
     lastCommittedPoint: null,
-    startBinding: { elementId: fromBox.id, focus: 0, gap: 6 },
-    endBinding: { elementId: toBox.id, focus: 0, gap: 6 },
+    startBinding: { elementId: fromBox.id, focus: 0, gap: 4 },
+    endBinding: { elementId: toBox.id, focus: 0, gap: 4 },
     startArrowhead: null,
     endArrowhead: "arrow",
     elbowed: false,
@@ -247,21 +307,38 @@ function connectBoxes({ fromBox, toBox, fromSide = "right", toSide = "left", str
 
   fromBox.boundElements.push({ id: arrowId, type: "arrow" });
   toBox.boundElements.push({ id: arrowId, type: "arrow" });
-  return arrow;
+
+  let labelEl = null;
+  if (label) {
+    const metrics = estimateTextMetrics([label], 13);
+    labelEl = createText({
+      id: nextId("arrow-lbl"),
+      x: startX + dx / 2 - metrics.width / 2,
+      y: startY + dy / 2 - metrics.height / 2,
+      width: metrics.width,
+      height: metrics.height,
+      text: label,
+      fontSize: 13,
+      fontFamily,
+      strokeColor: "#334155",
+      containerId: arrowId,
+    });
+    arrow.boundElements.push({ id: labelEl.id, type: "text" });
+  }
+
+  return labelEl ? [arrow, labelEl] : [arrow];
 }
 
-const BRANCH_PALETTE = [
-  { bg: "#dbeafe", stroke: "#1d4ed8", childBg: "#eff6ff" },
-  { bg: "#dcfce7", stroke: "#15803d", childBg: "#f0fdf4" },
-  { bg: "#fef3c7", stroke: "#b45309", childBg: "#fffbeb" },
-  { bg: "#fae8ff", stroke: "#86198f", childBg: "#fdf4ff" },
-];
+const BRANCH_ROLE_NAMES = ["branch_a", "branch_b", "branch_d", "branch_c"];
 
 /**
- * Deterministic balanced two-sided mind map layout engine.
+ * Deterministic balanced two-sided mind map layout engine with bound labels,
+ * curved organic connectors, central hero card, and semantic branch colors.
  */
-export function buildMindmapScene(spec) {
+export function buildMindmapScene(spec, { visualStyle = "hand_drawn_clean" } = {}) {
   resetAdapterIdCounter();
+  const style = resolveDiagramStyle(visualStyle);
+  const corePal = rolePaletteFor("core", style);
   const elements = [];
 
   const branches = spec.branches;
@@ -269,22 +346,22 @@ export function buildMindmapScene(spec) {
   const rightBranches = branches.slice(0, mid);
   const leftBranches = branches.slice(mid);
 
-  const CHILD_GAP_Y = 18;
-  const BRANCH_GAP_Y = 36;
-  const HORIZONTAL_GAP = 95;
+  const CHILD_GAP_Y = 20;
+  const BRANCH_GAP_Y = 44;
+  const HORIZONTAL_GAP = 105;
 
   function computeSideHeight(sideBranches) {
     let total = 0;
     for (let i = 0; i < sideBranches.length; i++) {
       const childCount = sideBranches[i].children.length;
-      total += childCount * 62 + (childCount - 1) * CHILD_GAP_Y;
+      total += childCount * 58 + (childCount - 1) * CHILD_GAP_Y;
       if (i < sideBranches.length - 1) total += BRANCH_GAP_Y;
     }
     return total;
   }
 
   const totalHeight = Math.max(
-    180,
+    220,
     computeSideHeight(rightBranches),
     computeSideHeight(leftBranches)
   );
@@ -293,15 +370,36 @@ export function buildMindmapScene(spec) {
   const rootBox = createLabeledBox({
     idPrefix: "mm-root",
     x: 640,
-    y: centerY - 35,
-    minWidth: 230,
+    y: centerY - 40,
+    minWidth: 240,
+    minHeight: 74,
     label: spec.root.label,
     fontSize: 22,
+    fontFamily: style.fontFamily,
     maxCharsPerLine: 20,
-    backgroundColor: "#e0e7ff",
-    strokeColor: "#312e81",
+    backgroundColor: corePal.fill,
+    strokeColor: corePal.stroke,
+    textColor: corePal.ink,
+    fillStyle: style.headerFillStyle,
+    strokeWidth: 3,
+    roughness: style.roughness,
   });
   elements.push(rootBox.rect, rootBox.textEl);
+
+  const rootTag = createText({
+    id: nextId("mm-root-tag"),
+    x: rootBox.rect.x,
+    y: rootBox.rect.y - 24,
+    width: rootBox.width,
+    height: 18,
+    text: "CENTRAL TOPIC",
+    fontSize: 12,
+    fontFamily: style.fontFamily,
+    strokeColor: corePal.stroke,
+    textAlign: "center",
+    verticalAlign: "top",
+  });
+  elements.push(rootTag);
 
   function layoutSide(sideBranches, side, paletteOffset = 0) {
     const sideHeight = computeSideHeight(sideBranches);
@@ -309,21 +407,29 @@ export function buildMindmapScene(spec) {
 
     for (let bIdx = 0; bIdx < sideBranches.length; bIdx++) {
       const branch = sideBranches[bIdx];
-      const palette = BRANCH_PALETTE[(bIdx + paletteOffset) % BRANCH_PALETTE.length];
+      const roleName = BRANCH_ROLE_NAMES[(bIdx + paletteOffset) % BRANCH_ROLE_NAMES.length];
+      const pal = rolePaletteFor(roleName, style);
+      const fallbackPal = BRANCH_ROLES[(bIdx + paletteOffset) % BRANCH_ROLES.length];
       const childrenBlockHeight =
-        branch.children.length * 62 + (branch.children.length - 1) * CHILD_GAP_Y;
+        branch.children.length * 58 + (branch.children.length - 1) * CHILD_GAP_Y;
       const branchCenterY = cursorY + childrenBlockHeight / 2;
 
       const branchTemp = createLabeledBox({
         idPrefix: "mm-branch",
         x: 0,
         y: 0,
-        minWidth: 190,
+        minWidth: 196,
+        minHeight: 56,
         label: branch.label,
         fontSize: 18,
+        fontFamily: style.fontFamily,
         maxCharsPerLine: 20,
-        backgroundColor: palette.bg,
-        strokeColor: palette.stroke,
+        backgroundColor: pal.fill,
+        strokeColor: pal.stroke,
+        textColor: pal.ink,
+        fillStyle: style.fillStyle,
+        strokeWidth: style.strokeWidth,
+        roughness: style.roughness,
       });
 
       const branchX =
@@ -334,17 +440,20 @@ export function buildMindmapScene(spec) {
 
       branchTemp.rect.x = branchX;
       branchTemp.rect.y = branchY;
-      branchTemp.textEl.x = branchX + (branchTemp.width - branchTemp.textEl.width) / 2;
-      branchTemp.textEl.y = branchY + (branchTemp.height - branchTemp.textEl.height) / 2;
+      reparentTextToBox(branchTemp.rect, branchTemp.textEl);
 
       elements.push(branchTemp.rect, branchTemp.textEl);
       elements.push(
-        connectBoxes({
+        ...connectBoxes({
           fromBox: rootBox.rect,
           toBox: branchTemp.rect,
           fromSide: side,
           toSide: side === "right" ? "left" : "right",
-          strokeColor: palette.stroke,
+          strokeColor: fallbackPal.stroke,
+          strokeWidth: 2.5,
+          roughness: style.roughness,
+          fontFamily: style.fontFamily,
+          curved: true,
         })
       );
 
@@ -354,12 +463,20 @@ export function buildMindmapScene(spec) {
           idPrefix: "mm-child",
           x: 0,
           y: 0,
-          minWidth: 170,
+          minWidth: 176,
+          minHeight: 48,
+          paddingX: 16,
+          paddingY: 11,
           label: child.label,
-          fontSize: 16,
-          maxCharsPerLine: 22,
-          backgroundColor: palette.childBg,
-          strokeColor: palette.stroke,
+          fontSize: 15,
+          fontFamily: style.fontFamily,
+          maxCharsPerLine: 24,
+          backgroundColor: pal.childFill,
+          strokeColor: pal.stroke,
+          textColor: pal.ink,
+          fillStyle: "solid",
+          strokeWidth: 1.5,
+          roughness: style.roughness,
         });
 
         const childX =
@@ -369,21 +486,24 @@ export function buildMindmapScene(spec) {
 
         childTemp.rect.x = childX;
         childTemp.rect.y = childY;
-        childTemp.textEl.x = childX + (childTemp.width - childTemp.textEl.width) / 2;
-        childTemp.textEl.y = childY + (childTemp.height - childTemp.textEl.height) / 2;
+        reparentTextToBox(childTemp.rect, childTemp.textEl);
 
         elements.push(childTemp.rect, childTemp.textEl);
         elements.push(
-          connectBoxes({
+          ...connectBoxes({
             fromBox: branchTemp.rect,
             toBox: childTemp.rect,
             fromSide: side,
             toSide: side === "right" ? "left" : "right",
-            strokeColor: palette.stroke,
+            strokeColor: fallbackPal.stroke,
+            strokeWidth: 1.5,
+            roughness: style.roughness,
+            fontFamily: style.fontFamily,
+            curved: true,
           })
         );
 
-        childY += Math.max(62, childTemp.height) + CHILD_GAP_Y;
+        childY += Math.max(58, childTemp.height) + CHILD_GAP_Y;
       }
 
       cursorY = childY + BRANCH_GAP_Y - CHILD_GAP_Y;
@@ -408,25 +528,30 @@ export function buildMindmapScene(spec) {
   };
 }
 
+const COMPARISON_ROLES = ["core", "branch_b", "branch_a", "branch_c"];
+
 /**
- * Deterministic aligned multi-column comparison board layout engine.
+ * Deterministic aligned multi-column comparison board with semantic column headers,
+ * equalized row heights, center VS divider badge, and Key Takeaway callout banner.
  */
-export function buildComparisonScene(spec) {
+export function buildComparisonScene(spec, { visualStyle = "hand_drawn_clean" } = {}) {
   resetAdapterIdCounter();
+  const style = resolveDiagramStyle(visualStyle);
+  const calloutPal = SEMANTIC_PALETTE.callout;
   const elements = [];
 
-  const COLUMN_WIDTH = 310;
-  const COLUMN_GAP = 32;
+  const COLUMN_WIDTH = 320;
+  const COLUMN_GAP = 56;
   const START_X = 80;
-  const TITLE_Y = 60;
-  const HEADER_Y = 140;
-  const ROW_START_Y = 225;
+  const TITLE_Y = 48;
+  const HEADER_Y = 128;
+  const ROW_START_Y = 216;
   const ROW_GAP = 16;
 
   const totalBoardWidth =
     spec.columns.length * COLUMN_WIDTH + (spec.columns.length - 1) * COLUMN_GAP;
 
-  const titleLines = wrapText(spec.title, 48);
+  const titleLines = wrapText(spec.title, 50);
   const titleMetrics = estimateTextMetrics(titleLines, 26);
   const titleEl = createText({
     id: nextId("cmp-title"),
@@ -436,65 +561,144 @@ export function buildComparisonScene(spec) {
     height: titleMetrics.height,
     text: titleLines.join("\n"),
     fontSize: 26,
+    fontFamily: style.fontFamily,
     strokeColor: "#0f172a",
   });
   elements.push(titleEl);
 
+  // Equalize row heights across columns so comparable attributes align horizontally.
+  const maxItems = Math.max(...spec.columns.map((c) => c.items.length));
+  const rowHeights = [];
+  for (let rowIdx = 0; rowIdx < maxItems; rowIdx++) {
+    let maxH = 70;
+    for (const col of spec.columns) {
+      const item = col.items[rowIdx];
+      if (!item) continue;
+      const lines = wrapText(`${item.label}\n${item.value}`, 32);
+      const metrics = estimateTextMetrics(lines, 15);
+      maxH = Math.max(maxH, metrics.height + 28);
+    }
+    rowHeights.push(maxH);
+  }
+
   for (let colIdx = 0; colIdx < spec.columns.length; colIdx++) {
     const col = spec.columns[colIdx];
-    const palette = BRANCH_PALETTE[colIdx % BRANCH_PALETTE.length];
+    const roleName = COMPARISON_ROLES[colIdx % COMPARISON_ROLES.length];
+    const pal = rolePaletteFor(roleName, style);
     const colX = START_X + colIdx * (COLUMN_WIDTH + COLUMN_GAP);
 
     const headerBox = createLabeledBox({
       idPrefix: "cmp-hdr",
       x: colX,
       y: HEADER_Y,
-      minWidth: COLUMN_WIDTH,
+      fixedWidth: COLUMN_WIDTH,
+      minHeight: 62,
       label: col.title,
       fontSize: 20,
+      fontFamily: style.fontFamily,
       maxCharsPerLine: 26,
-      backgroundColor: palette.bg,
-      strokeColor: palette.stroke,
+      backgroundColor: pal.fill,
+      strokeColor: pal.stroke,
+      textColor: pal.ink,
+      fillStyle: style.headerFillStyle,
+      strokeWidth: 2.5,
+      roughness: style.roughness,
     });
-    // Enforce uniform column width
-    headerBox.rect.width = COLUMN_WIDTH;
-    headerBox.textEl.x = colX + (COLUMN_WIDTH - headerBox.textEl.width) / 2;
     elements.push(headerBox.rect, headerBox.textEl);
 
-    let rowY = ROW_START_Y;
-    for (const item of col.items) {
-      const cardText = `${item.label}: ${item.value}`;
-      const lines = wrapText(cardText, 30);
-      const metrics = estimateTextMetrics(lines, 16);
-      const cardHeight = Math.max(66, metrics.height + 24);
+    if (colIdx < spec.columns.length - 1) {
+      const dividerX = colX + COLUMN_WIDTH + COLUMN_GAP / 2;
+      const vsBox = createLabeledBox({
+        idPrefix: "cmp-vs",
+        shapeType: "ellipse",
+        x: dividerX - 20,
+        y: HEADER_Y + 11,
+        fixedWidth: 40,
+        minHeight: 40,
+        paddingX: 4,
+        paddingY: 4,
+        label: spec.columns.length === 2 ? "VS" : "·",
+        fontSize: 13,
+        fontFamily: style.fontFamily,
+        backgroundColor: calloutPal.fill,
+        strokeColor: calloutPal.stroke,
+        textColor: calloutPal.ink,
+        fillStyle: "solid",
+        strokeWidth: 1.5,
+        roughness: 0,
+      });
+      elements.push(vsBox.rect, vsBox.textEl);
+    }
 
-      const cardRect = createRectangle({
-        id: nextId("cmp-row"),
+    let rowY = ROW_START_Y;
+    for (let rowIdx = 0; rowIdx < col.items.length; rowIdx++) {
+      const item = col.items[rowIdx];
+      const cardHeight = rowHeights[rowIdx];
+      const cardText = `${item.label.toUpperCase()}\n${item.value}`;
+      const isAlt = rowIdx % 2 === 1;
+
+      const cardBox = createLabeledBox({
+        idPrefix: "cmp-row",
         x: colX,
         y: rowY,
-        width: COLUMN_WIDTH,
-        height: cardHeight,
-        backgroundColor: palette.childBg,
-        strokeColor: palette.stroke,
-        strokeWidth: 1,
-      });
-
-      const cardTextEl = createText({
-        id: nextId("cmp-row-txt"),
-        x: colX + 16,
-        y: rowY + (cardHeight - metrics.height) / 2,
-        width: COLUMN_WIDTH - 32,
-        height: metrics.height,
-        text: lines.join("\n"),
-        fontSize: 16,
+        fixedWidth: COLUMN_WIDTH,
+        minHeight: cardHeight,
+        paddingX: 16,
+        paddingY: 12,
+        label: cardText,
+        fontSize: 15,
+        fontFamily: style.fontFamily,
+        maxCharsPerLine: 32,
+        backgroundColor: isAlt ? "#ffffff" : pal.childFill,
+        strokeColor: pal.stroke,
+        textColor: pal.ink,
+        fillStyle: "solid",
+        strokeWidth: 1.5,
+        roughness: style.roughness,
         textAlign: "left",
-        strokeColor: "#0f172a",
       });
+      // Preserve explicit line break between item label and value
+      const wrappedValue = wrapText(item.value, 32).join("\n");
+      const fullText = `${item.label}:\n${wrappedValue}`;
+      const metrics = estimateTextMetrics(fullText.split("\n"), 15);
+      cardBox.textEl.text = fullText;
+      cardBox.textEl.originalText = fullText;
+      cardBox.textEl.height = metrics.height;
+      cardBox.textEl.y = rowY + (cardHeight - metrics.height) / 2;
 
-      elements.push(cardRect, cardTextEl);
+      elements.push(cardBox.rect, cardBox.textEl);
       rowY += cardHeight + ROW_GAP;
     }
   }
+
+  // Bottom "Key Takeaway" callout banner summarizing the comparison
+  const rowsBottom = ROW_START_Y + rowHeights.reduce((a, b) => a + b + ROW_GAP, 0);
+  const colNames = spec.columns.map((c) => c.title).join(" vs ");
+  const firstDim = spec.columns[0]?.items[0]?.label;
+  const takeawayLabel = firstDim
+    ? `Key Takeaway: Choose between ${colNames} based on ${firstDim.toLowerCase()} and trade-offs above.`
+    : `Key Takeaway: Weigh trade-offs across ${colNames}.`;
+  const takeawayBox = createLabeledBox({
+    idPrefix: "cmp-takeaway",
+    x: START_X,
+    y: rowsBottom + 8,
+    fixedWidth: totalBoardWidth,
+    minHeight: 58,
+    paddingX: 20,
+    paddingY: 12,
+    label: takeawayLabel,
+    fontSize: 15,
+    fontFamily: style.fontFamily,
+    maxCharsPerLine: 72,
+    backgroundColor: calloutPal.fill,
+    strokeColor: calloutPal.stroke,
+    textColor: calloutPal.ink,
+    fillStyle: "solid",
+    strokeWidth: 1.5,
+    strokeStyle: "dashed",
+    roughness: style.roughness,
+  });
+  elements.push(takeawayBox.rect, takeawayBox.textEl);
 
   return {
     type: "excalidraw",

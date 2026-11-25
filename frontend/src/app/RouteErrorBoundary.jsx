@@ -19,7 +19,7 @@ export function RouteErrorBoundary() {
         <button
           type="button"
           onClick={() => window.location.reload()}
-          className="h-10 rounded-md bg-accent-700 px-4 text-sm font-medium text-white hover:bg-accent-800"
+          className="h-10 rounded-md bg-accent-700 px-4 text-sm font-medium text-on-accent hover:bg-accent-800"
         >
           Reload
         </button>

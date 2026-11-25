@@ -22,6 +22,10 @@ import { AccountSettingsPage } from "../features/profile/AccountSettingsPage.jsx
 import { PreferencesPage } from "../features/profile/PreferencesPage.jsx";
 import { CreatePage } from "../features/create/CreatePage.jsx";
 import { GenerationResultPage } from "../features/generation/GenerationResultPage.jsx";
+import { LibraryPage } from "../features/notes/LibraryPage.jsx";
+import { NoteReadPage } from "../features/notes/NoteReadPage.jsx";
+import { NoteEditorPage } from "../features/notes/NoteEditorPage.jsx";
+import { NotePresentPage } from "../features/notes/NotePresentPage.jsx";
 
 // Excalidraw (~MBs) is only downloaded when the editor preview is opened.
 const ExcalidrawSpikePage = lazy(() => import("../features/spike/ExcalidrawSpikePage.jsx"));
@@ -63,6 +67,11 @@ export const router = createBrowserRouter([
               { path: "create", element: <CreatePage /> },
               // Full-bleed: the workspace manages its own layout (PRD 6.4).
               { path: "generations/:jobId", element: <GenerationResultPage />, handle: { fullWidth: true } },
+              { path: "notes", element: <LibraryPage />, handle: { wide: true } },
+              { path: "folders/:folderId", element: <LibraryPage />, handle: { wide: true } },
+              { path: "notes/:noteId", element: <NoteReadPage /> },
+              { path: "notes/:noteId/edit", element: <NoteEditorPage />, handle: { fullWidth: true } },
+              { path: "notes/:noteId/present", element: <NotePresentPage />, handle: { fullWidth: true } },
               { path: "profile", element: <ProfilePage /> },
               { path: "settings", element: <SettingsPage /> },
               { path: "settings/account", element: <AccountSettingsPage /> },

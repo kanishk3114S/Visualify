@@ -1,16 +1,18 @@
 import { Link } from "react-router-dom";
 import { Logo } from "../../components/Layout.jsx";
+import { ThemeToggle } from "../../components/ThemeToggle.jsx";
 
 /** Centered card layout shared by every authentication screen. */
 export function AuthLayout({ title, subtitle, children, footer }) {
   return (
     <div className="flex min-h-dvh flex-col">
-      <header className="px-4 py-5 sm:px-8">
+      <header className="flex items-center justify-between px-4 py-5 sm:px-8">
         <Logo />
+        <ThemeToggle compact />
       </header>
       <main className="flex flex-1 items-start justify-center px-4 pb-16 pt-4 sm:pt-10">
         <div className="w-full max-w-md">
-          <div className="rounded-xl border border-stone-200 bg-white p-6 shadow-xs sm:p-8">
+          <div className="rounded-xl border border-stone-200 bg-surface p-6 shadow-xs sm:p-8">
             <div className="mb-6 space-y-1.5">
               <h1 className="text-xl font-semibold tracking-tight text-stone-900">{title}</h1>
               {subtitle && <p className="text-sm text-stone-600">{subtitle}</p>}

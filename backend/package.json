@@ -12,7 +12,7 @@
     "start": "node src/server.js",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:rls:sql": "node --test ../supabase/tests/rls.pglite.test.js",
+    "test:rls:sql": "node --test ../supabase/tests/rls.pglite.test.js ../supabase/tests/notes.pglite.test.js ../supabase/tests/sources.pglite.test.js ../supabase/tests/learning_companion.pglite.test.js",
     "test:rls:live": "node --test ../supabase/tests/rls.live.test.js",
     "smoke:generation": "node scripts/smokeGeneration.js",
     "smoke:live-api": "node scripts/liveApiSmoke.js"

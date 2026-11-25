@@ -410,6 +410,15 @@ export const DiagramSpecSchema = z.discriminatedUnion("kind", [
   ClassDiagramSpecSchema,
 ]);
 
+export const SourceRefSchema = z
+  .object({
+    page: z.number().int().positive().optional(),
+    pages: z.array(z.number().int().positive()).max(20).optional(),
+    label: z.string().trim().min(1).max(80).optional(),
+    snippet: z.string().trim().min(1).max(500),
+  })
+  .strict();
+
 export const LearningPlanSectionSchema = z
   .object({
     id: IdSchema,
@@ -428,17 +437,7 @@ export const LearningPlanSectionSchema = z
       )
       .max(30),
     explanation: z.string().trim().min(1).max(2000),
-    sourceRefs: z
-      .array(
-        z
-          .object({
-            page: z.number().int().positive().optional(),
-            snippet: z.string().trim().min(1).max(500),
-          })
-          .strict()
-      )
-      .max(20)
-      .default([]),
+    sourceRefs: z.array(SourceRefSchema).max(20).default([]),
     diagramSpec: DiagramSpecSchema,
   })
   .strict()
@@ -482,7 +481,7 @@ export const LearningPlanSchema = z
  * finite-state grammar compiler (e.g. minItems/maxItems inside large unions).
  * Runtime Zod validation (LearningPlanSchema) remains strictly enforced on the server.
  */
-function sanitizeForGemini(node) {
+export function sanitizeForGemini(node) {
   if (Array.isArray(node)) {
     return node.map(sanitizeForGemini);
   }

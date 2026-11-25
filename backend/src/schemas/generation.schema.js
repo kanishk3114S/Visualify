@@ -1,12 +1,13 @@
 import { z } from "zod";
-import { SUPPORTED_VISUAL_TYPES } from "@visualify/worker";
+import { SUPPORTED_VISUAL_TYPES, VISUAL_STYLES } from "@visualify/worker";
 
 export const PROMPT_MAX_CHARS = 8000;
+export const GUIDANCE_MAX_CHARS = 2000;
 
 export const GENERATION_OPTIONS = Object.freeze({
   audienceLevel: ["school", "undergraduate", "postgraduate", "professional"],
   detail: ["brief", "standard", "detailed"],
-  visualStyle: ["hand_drawn_clean", "minimal"],
+  visualStyle: VISUAL_STYLES,
   preferredOutput: ["auto", ...SUPPORTED_VISUAL_TYPES],
 });
 
@@ -43,19 +44,63 @@ export const generationSettingsSchema = z
     preferredOutput: s.preferredOutput ?? "auto",
   }));
 
-export const createGenerationSchema = z.strictObject({
-  inputType: z.literal("prompt", { error: 'inputType must be "prompt".' }),
-  prompt: z
-    .string({ error: "Enter a topic, question or notes." })
-    .transform(normalizePrompt)
-    .pipe(
-      z
-        .string()
-        .min(1, "Enter a topic, question or notes.")
-        .max(PROMPT_MAX_CHARS, `Prompts can be at most ${PROMPT_MAX_CHARS.toLocaleString("en-US")} characters.`)
-    ),
-  settings: generationSettingsSchema.optional().transform((s) => s ?? generationSettingsSchema.parse({})),
-});
+export const pageRangeSchema = z
+  .strictObject({
+    mode: z.enum(["all", "range", "custom"]).optional(),
+    startPage: z.number().int().min(1).max(500).optional(),
+    endPage: z.number().int().min(1).max(500).optional(),
+    pages: z.array(z.number().int().min(1).max(500)).min(1).max(100).optional(),
+    expression: z.string().trim().min(1).max(200).optional(),
+  })
+  .superRefine((val, ctx) => {
+    if (val.startPage !== undefined && val.endPage !== undefined && val.endPage < val.startPage) {
+      ctx.addIssue({ code: "custom", path: ["endPage"], message: "End page must be >= start page." });
+    }
+    if (val.startPage !== undefined && val.endPage !== undefined && val.endPage - val.startPage + 1 > 100) {
+      ctx.addIssue({ code: "custom", path: ["endPage"], message: "Select at most 100 pages per generation." });
+    }
+  });
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 export const isUuid = (value) => typeof value === "string" && UUID_RE.test(value);
+
+export const createGenerationSchema = z
+  .strictObject({
+    inputType: z.enum(["prompt", "pdf", "image"], { error: 'inputType must be "prompt", "pdf" or "image".' }),
+    prompt: z
+      .string()
+      .transform(normalizePrompt)
+      .pipe(z.string().max(PROMPT_MAX_CHARS, `Prompts can be at most ${PROMPT_MAX_CHARS.toLocaleString("en-US")} characters.`))
+      .optional(),
+    sourceFileId: z.uuid({ error: "Select a valid uploaded source file." }).optional(),
+    pageRange: pageRangeSchema.nullable().optional(),
+    settings: generationSettingsSchema.optional().transform((s) => s ?? generationSettingsSchema.parse({})),
+  })
+  .superRefine((data, ctx) => {
+    if (data.inputType === "prompt") {
+      if (!data.prompt || data.prompt.length < 1) {
+        ctx.addIssue({ code: "custom", path: ["prompt"], message: "Enter a topic, question or notes." });
+      }
+      if (data.sourceFileId !== undefined) {
+        ctx.addIssue({ code: "custom", path: ["sourceFileId"], message: "sourceFileId is not allowed for prompt inputs." });
+      }
+      if (data.pageRange !== undefined && data.pageRange !== null) {
+        ctx.addIssue({ code: "custom", path: ["pageRange"], message: "pageRange is only valid for PDF inputs." });
+      }
+      return;
+    }
+
+    if (!data.sourceFileId) {
+      ctx.addIssue({ code: "custom", path: ["sourceFileId"], message: "Upload a source file first." });
+    }
+    if (data.prompt && data.prompt.length > GUIDANCE_MAX_CHARS) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["prompt"],
+        message: `Focus instructions can be at most ${GUIDANCE_MAX_CHARS.toLocaleString("en-US")} characters.`,
+      });
+    }
+    if (data.inputType !== "pdf" && data.pageRange !== undefined && data.pageRange !== null) {
+      ctx.addIssue({ code: "custom", path: ["pageRange"], message: "pageRange is only valid for PDF inputs." });
+    }
+  });

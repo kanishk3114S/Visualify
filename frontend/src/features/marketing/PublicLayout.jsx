@@ -2,6 +2,7 @@ import { Link, NavLink, Outlet } from "react-router-dom";
 import clsx from "clsx";
 import { Logo } from "../../components/Layout.jsx";
 import { ButtonLink } from "../../components/Button.jsx";
+import { ThemeToggle } from "../../components/ThemeToggle.jsx";
 import { useAuth } from "../auth/AuthContext.jsx";
 
 /** Header/footer for public marketing and legal pages. */
@@ -24,6 +25,7 @@ export function PublicLayout() {
             </nav>
           </div>
           <div className="flex items-center gap-2">
+            <ThemeToggle compact />
             {signedIn ? (
               <ButtonLink to="/app" size="sm">
                 Open dashboard
@@ -44,7 +46,7 @@ export function PublicLayout() {
       <main id="main-content" className="flex-1">
         <Outlet />
       </main>
-      <footer className="border-t border-stone-200 bg-white">
+      <footer className="border-t border-stone-200 bg-surface">
         <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-8 text-sm text-stone-600 sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <p>© {new Date().getFullYear()} Visualify</p>
           <nav aria-label="Footer" className="flex gap-5">

@@ -36,7 +36,7 @@ export function ConfirmDialog({
         e.preventDefault();
         if (!loading) onCancel();
       }}
-      className="m-auto w-[calc(100%-2rem)] max-w-md rounded-xl border border-stone-200 bg-white p-0 text-stone-900 shadow-xl backdrop:bg-stone-900/40"
+      className="m-auto w-[calc(100%-2rem)] max-w-md rounded-xl border border-stone-200 bg-surface p-0 text-stone-900 shadow-xl backdrop:bg-black/50"
     >
       <div className="space-y-2 p-6">
         <h2 id={titleId} className="text-lg font-semibold">

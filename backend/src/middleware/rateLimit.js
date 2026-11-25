@@ -30,5 +30,15 @@ export function createRateLimiters() {
     generationCreate: limiter({ windowMs: 60 * 60 * 1000, limit: 20, byUser: true }),
     /** Generation cancel. */
     generationControl: limiter({ windowMs: 15 * 60 * 1000, limit: 60, byUser: true }),
+    /** Notes/folders writes (rename, move, snapshot, restore, duplicate, delete). */
+    notesWrite: limiter({ windowMs: 15 * 60 * 1000, limit: 300, byUser: true }),
+    /** Autosave fires every few seconds while editing. */
+    autosave: limiter({ windowMs: 15 * 60 * 1000, limit: 1200, byUser: true }),
+    /** Exports launch a headless browser. */
+    exports: limiter({ windowMs: 15 * 60 * 1000, limit: 40, byUser: true }),
+    /** Source file uploads (PDF/image). */
+    sourcesUpload: limiter({ windowMs: 15 * 60 * 1000, limit: 30, byUser: true }),
+    /** AI study companion & section regeneration calls. */
+    aiCompanion: limiter({ windowMs: 60 * 60 * 1000, limit: 60, byUser: true }),
   };
 }

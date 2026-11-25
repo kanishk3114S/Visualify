@@ -87,8 +87,8 @@ test.describe("Phase 2: prompt -> SSE progress -> workspace (mocked API)", () =>
       await expect(page.getByTestId("visual-workspace")).toBeVisible({ timeout: 15_000 });
       await expect(page.getByTestId("workspace-title")).toHaveText(PLAN.title);
       await expect(page.getByText("Mind map").first()).toBeVisible();
-      await expect(page.getByText("Save to Library (Phase 3)")).toBeDisabled();
-      await expect(page.getByTestId("edit-status")).toHaveText("Generated · no edits");
+      await expect(page.getByTestId("save-to-library")).toBeEnabled();
+      await expect(page.getByTestId("edit-status")).toHaveText("Generated · not saved yet");
 
       // SSE used the Authorization header, never a token in the URL.
       const eventsCall = api.calls.find((c) => c.path.endsWith("/events"));

@@ -3,6 +3,7 @@ import { AppError } from "../utils/errors.js";
 import { isUuid } from "../schemas/generation.schema.js";
 import { toJobDto } from "../generation/generationService.js";
 import { isTerminal } from "../generation/jobStates.js";
+import { toSourceFileDto } from "../services/sourceFiles.service.js";
 
 export const SSE_HEARTBEAT_MS = 20_000;
 const MAX_STREAMS_PER_USER = 5;
@@ -33,7 +34,15 @@ export function createGenerationsController({ service, store, bus, heartbeatMs =
   return {
     async create(req, res) {
       ensureEnabled();
-      const job = await service.createJob({ ownerId: req.user.id, prompt: req.body.prompt, settings: req.body.settings });
+      const job = await service.createJob({
+        db: req.db,
+        ownerId: req.user.id,
+        inputType: req.body.inputType,
+        prompt: req.body.prompt ?? null,
+        sourceFileId: req.body.sourceFileId ?? null,
+        pageRange: req.body.pageRange ?? null,
+        settings: req.body.settings,
+      });
       res.set("Location", `/api/v1/generations/${job.id}`);
       return sendSuccess(res, { jobId: job.id, status: job.status }, 202);
     },
@@ -42,7 +51,12 @@ export function createGenerationsController({ service, store, bus, heartbeatMs =
       const jobId = requireJobId(req);
       const row = await store.getJob({ db: req.db, ownerId: req.user.id, jobId });
       if (!row) throw notFound();
-      return sendSuccess(res, { job: toJobDto(row) });
+      const job = toJobDto(row);
+      if (row.source_file_id && store.getSourceFile) {
+        const sf = await store.getSourceFile({ db: req.db, ownerId: req.user.id, sourceFileId: row.source_file_id }).catch(() => null);
+        job.sourceFile = sf ? toSourceFileDto(sf) : null;
+      }
+      return sendSuccess(res, { job });
     },
 
     async cancel(req, res) {
