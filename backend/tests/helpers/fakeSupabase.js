@@ -20,6 +20,7 @@ export function createFakeSupabase() {
   const state = {
     tokens: new Map(), // token -> user
     profiles: new Map(), // id -> row
+    sourceFiles: new Map(), // id -> row
     objects: new Map(), // "bucket/path" -> { buffer, contentType }
     healthy: true,
     authDown: false,
@@ -139,8 +140,87 @@ export function createFakeSupabase() {
     };
   }
 
+  function sourceFilesTable(user) {
+    return {
+      select() {
+        const filters = [];
+        const q = {
+          eq(col, val) {
+            filters.push([col, val]);
+            return q;
+          },
+          async maybeSingle() {
+            state.calls.push({ op: "source_files.select", user: user.id, filters: [...filters] });
+            if (state.fail.select) return { data: null, error: { code: "XX000", message: "db down" } };
+            const rows = [...state.sourceFiles.values()].filter(
+              (r) => r.owner_id === user.id && filters.every(([c, v]) => r[c] === v)
+            );
+            return { data: clone(rows[0] ?? null), error: null };
+          },
+        };
+        return q;
+      },
+      insert(row) {
+        return {
+          select() {
+            return {
+              async single() {
+                state.calls.push({ op: "source_files.insert", user: user.id, row });
+                if (state.fail.insert) return { data: null, error: { code: "XX000", message: "db insert fail" } };
+                if (row.owner_id !== user.id) return { data: null, error: { code: "42501", message: "rls" } };
+                const now = new Date().toISOString();
+                const full = {
+                  id: row.id ?? randomUUID(),
+                  owner_id: row.owner_id,
+                  note_id: null,
+                  bucket: row.bucket ?? "source-files",
+                  object_path: row.object_path,
+                  original_name: row.original_name,
+                  mime_type: row.mime_type,
+                  size_bytes: row.size_bytes,
+                  checksum: row.checksum,
+                  page_count: row.page_count ?? null,
+                  width: row.width ?? null,
+                  height: row.height ?? null,
+                  extraction_status: "uploaded",
+                  extracted_metadata: {},
+                  error_code: null,
+                  safe_error_message: null,
+                  created_at: now,
+                  updated_at: now,
+                };
+                state.sourceFiles.set(full.id, full);
+                return { data: clone(full), error: null };
+              },
+            };
+          },
+        };
+      },
+      delete() {
+        const filters = [];
+        const q = {
+          eq(col, val) {
+            filters.push([col, val]);
+            return q;
+          },
+          then(resolve) {
+            state.calls.push({ op: "source_files.delete", user: user.id, filters: [...filters] });
+            if (state.fail.delete) return Promise.resolve({ data: null, error: { code: "XX000", message: "db del fail" } }).then(resolve);
+            for (const [id, r] of state.sourceFiles) {
+              if (r.owner_id === user.id && filters.every(([c, v]) => r[c] === v)) {
+                state.sourceFiles.delete(id);
+              }
+            }
+            return Promise.resolve({ data: null, error: null }).then(resolve);
+          },
+        };
+        return q;
+      },
+    };
+  }
+
   function bucket(user, name) {
-    const ownsPath = (p) => typeof p === "string" && p.split("/")[0] === user.id && p.split("/").length === 2;
+    const ownsPath = (p) => typeof p === "string" && p.split("/")[0] === user.id && p.split("/").length >= 2;
     return {
       async upload(path, buffer, opts) {
         state.calls.push({ op: "storage.upload", user: user.id, bucket: name, path, contentType: opts?.contentType, size: buffer.length });
@@ -185,8 +265,9 @@ export function createFakeSupabase() {
       if (!user) throw new Error("createUserClient called with an unverified token");
       return {
         from: (table) => {
-          if (table !== "profiles") throw new Error(`unexpected table ${table}`);
-          return profilesTable(user);
+          if (table === "profiles") return profilesTable(user);
+          if (table === "source_files") return sourceFilesTable(user);
+          throw new Error(`unexpected table ${table}`);
         },
         storage: { from: (name) => bucket(user, name) },
       };

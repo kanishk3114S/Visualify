@@ -3,7 +3,7 @@ import clsx from "clsx";
 import { AlertCircle } from "lucide-react";
 
 const CONTROL =
-  "block w-full rounded-md border bg-white px-3 text-stone-900 placeholder:text-stone-400 shadow-xs transition-colors disabled:bg-stone-100 disabled:text-stone-500";
+  "block w-full rounded-md border bg-surface px-3 text-stone-900 placeholder:text-stone-400 shadow-xs transition-colors disabled:bg-stone-100 disabled:text-stone-500";
 
 function controlState(error) {
   return error ? "border-red-600 focus-visible:outline-red-700" : "border-stone-300 hover:border-stone-400";

@@ -4,8 +4,8 @@ import { sendError } from "../utils/response.js";
 
 const MULTER_ERRORS = {
   LIMIT_FILE_SIZE: [413, "FILE_TOO_LARGE", "This file exceeds the current upload limit."],
-  LIMIT_FILE_COUNT: [400, "TOO_MANY_FILES", "Upload a single image file."],
-  LIMIT_UNEXPECTED_FILE: [400, "UNEXPECTED_FILE_FIELD", 'Upload the image in the "avatar" field.'],
+  LIMIT_FILE_COUNT: [400, "TOO_MANY_FILES", "Upload a single file."],
+  LIMIT_UNEXPECTED_FILE: [400, "UNEXPECTED_FILE_FIELD", "Unexpected upload field name."],
   LIMIT_PART_COUNT: [400, "INVALID_UPLOAD", "The upload request is malformed."],
   LIMIT_FIELD_COUNT: [400, "INVALID_UPLOAD", "The upload request is malformed."],
   LIMIT_FIELD_KEY: [400, "INVALID_UPLOAD", "The upload request is malformed."],

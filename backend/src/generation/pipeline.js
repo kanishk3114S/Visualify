@@ -28,30 +28,44 @@ export function preferredVisualTypesFor(settings) {
 }
 
 /**
- * Prompt -> validated learning plan -> per-section scenes -> one validated
- * Excalidraw scene. Pure orchestration: provider/CLI access is injected.
- *
- * @param {object} args
- * @param {{ input_text: string, settings: object }} args.job
- * @param {AbortSignal} args.signal
- * @param {(stage: string, progress: number) => Promise<void>|void} args.onStage  persisted stage change
- * @param {(progress: number) => void} args.onProgress  ephemeral progress tick (SSE only)
- * @param {{ planner: Function, compileSection: Function, tickMs?: number }} args.deps
+ * Input (prompt | pdf | image) -> (optional extraction) -> validated learning plan
+ * -> per-section scenes -> one validated Excalidraw scene.
  */
 export async function runGenerationPipeline({ job, signal, onStage, onProgress, deps }) {
   const startedAt = Date.now();
+  const inputType = job.input_type ?? "prompt";
+  const visualStyle = job.settings?.visualStyle ?? "hand_drawn_clean";
 
   // 1. Validating: cheap re-checks before any paid call.
   await onStage("validating", STAGE_PROGRESS.validating);
   throwIfAborted(signal);
   const prompt = typeof job.input_text === "string" ? job.input_text.trim() : "";
-  if (!prompt) throw new PipelineError("INVALID_INPUT", "empty prompt");
+  if (inputType === "prompt" && !prompt) throw new PipelineError("INVALID_INPUT", "empty prompt");
+  if ((inputType === "pdf" || inputType === "image") && !job.source_file_id) {
+    throw new PipelineError("SOURCE_NOT_FOUND", "missing source_file_id");
+  }
 
-  // 2. Planning: one Gemini call (+ at most one bounded repair inside the worker).
+  // 2. Extracting (PDF & Image inputs only).
+  let extractedSource = null;
+  if (inputType === "pdf" || inputType === "image") {
+    await onStage("extracting", STAGE_PROGRESS.extracting);
+    throwIfAborted(signal);
+    if (!deps.extractSource) {
+      throw new PipelineError("EXTRACTION_FAILED", "source extraction not configured");
+    }
+    try {
+      extractedSource = await deps.extractSource({ job, signal });
+    } catch (err) {
+      if (signal?.aborted || err?.code === "CANCELLED") throw cancelled(signal);
+      throw err;
+    }
+    throwIfAborted(signal);
+  }
+
+  // 3. Planning: one Gemini call (+ at most one bounded repair inside the worker).
   await onStage("planning", STAGE_PROGRESS.planning);
   let progress = STAGE_PROGRESS.planning;
   const ticker = setInterval(() => {
-    // Ease towards the ceiling; a UX signal only, never backwards (PRD 11.2).
     progress = Math.min(PLANNING_PROGRESS_CEILING, progress + Math.max(1, Math.round((PLANNING_PROGRESS_CEILING - progress) / 6)));
     onProgress(progress);
   }, deps.tickMs ?? 2000);
@@ -59,7 +73,9 @@ export async function runGenerationPipeline({ job, signal, onStage, onProgress, 
   let planned;
   try {
     planned = await deps.planner({
+      inputType,
       prompt,
+      extractedSource,
       settings: job.settings ?? {},
       preferredVisualTypes: preferredVisualTypesFor(job.settings),
       signal,
@@ -72,27 +88,25 @@ export async function runGenerationPipeline({ job, signal, onStage, onProgress, 
   }
   throwIfAborted(signal);
 
-  // Never trust model output: re-validate even though the worker already did.
   const parsed = LearningPlanSchema.safeParse(planned?.plan);
   if (!parsed.success) throw new PipelineError("SCHEMA_VALIDATION_FAILED", "plan failed validation");
   const plan = parsed.data;
 
-  // 3. Composing: each section independently; partial success is allowed.
+  // 4. Composing: each section independently; partial success is allowed.
   await onStage("composing", STAGE_PROGRESS.composing);
   const parts = [];
   const mermaidBlocks = [];
-  const warnings = [...plan.warnings];
+  const warnings = [...(extractedSource?.warnings ?? []), ...plan.warnings];
   const strategies = {};
   const step = Math.floor((STAGE_PROGRESS.persisting - STAGE_PROGRESS.composing) / plan.sections.length);
 
   for (const [index, section] of plan.sections.entries()) {
     throwIfAborted(signal);
     try {
-      const compiled = await deps.compileSection(section.diagramSpec, { signal });
-      // Avoid a duplicate heading when the diagram already renders the same title.
+      const compiled = await deps.compileSection(section.diagramSpec, { signal, visualStyle });
       const ownTitle = typeof section.diagramSpec.title === "string" ? section.diagramSpec.title.trim().toLowerCase() : null;
       const title = ownTitle && ownTitle === section.title.trim().toLowerCase() ? null : section.title;
-      parts.push({ sectionId: section.id, title, scene: compiled.scene });
+      parts.push({ sectionId: section.id, title, frameName: `${index + 1}. ${section.title}`, visualType: section.visualType, scene: compiled.scene });
       strategies[section.id] = compiled.strategy;
       if (compiled.mermaidSource) mermaidBlocks.push(`%% section: ${section.id}\n${compiled.mermaidSource}`);
     } catch (err) {
@@ -103,7 +117,7 @@ export async function runGenerationPipeline({ job, signal, onStage, onProgress, 
   }
   if (parts.length === 0) throw new PipelineError("COMPOSE_FAILED", "no section could be composed");
 
-  const scene = composeLessonScene(parts);
+  const scene = composeLessonScene(parts, { visualStyle });
   const validation = validateExcalidrawScene(scene);
   if (!validation.valid) throw new PipelineError("COMPOSE_FAILED", "composed scene failed validation");
   throwIfAborted(signal);
@@ -112,7 +126,7 @@ export async function runGenerationPipeline({ job, signal, onStage, onProgress, 
     plan,
     scene,
     mermaidSource: mermaidBlocks.length ? mermaidBlocks.join("\n\n") : null,
-    warnings: warnings.slice(0, 20),
+    warnings: [...new Set(warnings)].slice(0, 20),
     modelId: planned.model ?? null,
     promptVersion: planned.promptVersion ?? null,
     usage: {
@@ -125,6 +139,8 @@ export async function runGenerationPipeline({ job, signal, onStage, onProgress, 
       sectionsComposed: parts.length,
       sectionsTotal: plan.sections.length,
       strategies,
+      inputType,
+      selectedPagesCount: extractedSource?.selectedPages?.length ?? 0,
     },
   };
 }

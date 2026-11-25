@@ -63,16 +63,17 @@ export const SAMPLE_PLAN = Object.freeze({
 const box = (id) => ({ id, type: "rectangle", x: 0, y: 0, width: 120, height: 60 });
 
 export class InMemoryJobStore {
-  constructor() {
+  constructor(supabaseState = null) {
     this.rows = new Map();
     this.fail = {};
+    this.supabaseState = supabaseState;
   }
 
   #maybeFail(op) {
     if (this.fail[op]) throw Object.assign(new Error(`${op} failed`), { status: 502, code: "DATABASE_ERROR", expose: true });
   }
 
-  async insertJob({ ownerId, inputText, settings, retryOf = null, attemptCount = 1 }) {
+  async insertJob({ ownerId, inputType = "prompt", inputText = null, sourceFileId = null, pageRange = null, settings, retryOf = null, attemptCount = 1 }) {
     this.#maybeFail("insert");
     if ([...this.rows.values()].some((r) => r.owner_id === ownerId && ACTIVE_STATUSES.includes(r.status))) {
       throw new ActiveJobExistsError();
@@ -81,8 +82,10 @@ export class InMemoryJobStore {
     const row = {
       id: randomUUID(),
       owner_id: ownerId,
-      input_type: "prompt",
+      input_type: inputType,
       input_text: inputText,
+      source_file_id: sourceFileId,
+      page_range: pageRange,
       settings,
       status: "queued",
       stage: null,
@@ -105,6 +108,29 @@ export class InMemoryJobStore {
     };
     this.rows.set(row.id, row);
     return structuredClone(row);
+  }
+
+  async getSourceFile({ ownerId, sourceFileId }) {
+    if (!this.supabaseState) return null;
+    const row = this.supabaseState.sourceFiles.get(sourceFileId);
+    return row && row.owner_id === ownerId ? structuredClone(row) : null;
+  }
+
+  async getSourceFileForRunner({ sourceFileId, ownerId }) {
+    return this.getSourceFile({ ownerId, sourceFileId });
+  }
+
+  async downloadSourceObject(objectPath) {
+    const obj = this.supabaseState?.objects.get(`source-files/${objectPath}`);
+    if (!obj) throw Object.assign(new Error("Missing source object"), { code: "SOURCE_NOT_FOUND" });
+    return Buffer.from(obj.buffer);
+  }
+
+  async updateSourceExtraction(sourceFileId, ownerId, patch) {
+    const row = this.supabaseState?.sourceFiles.get(sourceFileId);
+    if (row && row.owner_id === ownerId) {
+      Object.assign(row, structuredClone(patch), { updated_at: new Date().toISOString() });
+    }
   }
 
   async getJob({ ownerId, jobId }) {
@@ -170,16 +196,32 @@ export function deferred() {
  * Controllable fake pipeline. By default the planner resolves immediately with
  * SAMPLE_PLAN. Set `gate` to a deferred() to hold the planner "in flight".
  */
-export function createFakePipelineDeps() {
+export function createFakePipelineDeps(store = null) {
   const deps = {
     gate: null,
     plannerError: null,
+    extractError: null,
     plan: SAMPLE_PLAN,
     failSections: new Set(),
     calls: [],
     tickMs: 5,
+    async extractSource({ job }) {
+      deps.calls.push({ op: "extract", inputType: job.input_type, sourceFileId: job.source_file_id, pageRange: job.page_range });
+      if (deps.extractError) throw deps.extractError;
+      const sf = await store?.getSourceFileForRunner({ sourceFileId: job.source_file_id, ownerId: job.owner_id });
+      if (!sf) throw Object.assign(new Error("Missing source"), { code: "SOURCE_NOT_FOUND" });
+      await store?.updateSourceExtraction(sf.id, job.owner_id, { extraction_status: "extracted", extracted_metadata: { processedPages: sf.page_count ?? 1 } });
+      return {
+        inputType: job.input_type,
+        pageCount: sf.page_count ?? null,
+        selectedPages: sf.page_count ? [1] : [],
+        textContent: "[Page 1]\nExtracted sample source text",
+        warnings: [],
+        mediaParts: [],
+      };
+    },
     async planner(args) {
-      deps.calls.push({ op: "planner", prompt: args.prompt, settings: args.settings, preferredVisualTypes: args.preferredVisualTypes });
+      deps.calls.push({ op: "planner", inputType: args.inputType, prompt: args.prompt, extractedSource: args.extractedSource, settings: args.settings, preferredVisualTypes: args.preferredVisualTypes });
       if (deps.gate) {
         await new Promise((resolve, reject) => {
           deps.gate.promise.then(resolve, reject);
@@ -204,11 +246,11 @@ export function createFakePipelineDeps() {
   return deps;
 }
 
-export function createTestGenerationStack({ config, logger, enabled = true, concurrency = 2, heartbeatMs = 50, generationOverrides = {} } = {}) {
-  const store = new InMemoryJobStore();
+export function createTestGenerationStack({ config, logger, enabled = true, concurrency = 2, heartbeatMs = 50, generationOverrides = {}, supabaseState = null } = {}) {
+  const store = new InMemoryJobStore(supabaseState);
   const bus = new JobEventBus();
   const queue = new InProcessQueue({ concurrency, logger });
-  const pipelineDeps = createFakePipelineDeps();
+  const pipelineDeps = createFakePipelineDeps(store);
   const cfg = { ...config, generation: { ...config.generation, enabled, ...generationOverrides } };
   const service = createGenerationService({ config: cfg, store, queue, bus, pipelineDeps, logger });
   return { service, store, bus, queue, pipelineDeps, heartbeatMs };

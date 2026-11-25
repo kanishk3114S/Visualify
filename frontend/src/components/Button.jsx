@@ -4,14 +4,14 @@ import clsx from "clsx";
 import { Spinner } from "./Spinner.jsx";
 
 const BASE =
-  "inline-flex items-center justify-center gap-2 rounded-md font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60 whitespace-nowrap";
+  "inline-flex items-center justify-center gap-2 rounded-md font-medium transition-all duration-150 active:scale-[0.98] disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-60 whitespace-nowrap select-none";
 
 const VARIANTS = {
-  primary: "bg-accent-700 text-white hover:bg-accent-800 active:bg-accent-900",
-  secondary: "border border-stone-300 bg-white text-stone-800 hover:bg-stone-50 active:bg-stone-100",
-  ghost: "text-stone-700 hover:bg-stone-100 active:bg-stone-200",
-  danger: "bg-red-700 text-white hover:bg-red-800 active:bg-red-900",
-  dangerOutline: "border border-red-300 bg-white text-red-700 hover:bg-red-50",
+  primary: "bg-accent-700 text-on-accent shadow-xs hover:bg-accent-800 active:bg-accent-900",
+  secondary: "border border-stone-300 bg-surface text-stone-800 shadow-2xs hover:border-stone-400 hover:bg-stone-50 active:bg-stone-100",
+  ghost: "text-stone-700 hover:bg-stone-100 hover:text-stone-900 active:bg-stone-200",
+  danger: "bg-red-700 text-on-accent shadow-xs hover:bg-red-800 active:bg-red-900",
+  dangerOutline: "border border-red-300 bg-surface text-red-700 hover:bg-red-50 active:bg-red-100",
 };
 
 const SIZES = {

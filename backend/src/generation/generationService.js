@@ -1,3 +1,4 @@
+import { parsePageRange, SourceExtractionError } from "@visualify/worker";
 import { AppError } from "../utils/errors.js";
 import { ActiveJobExistsError } from "./jobStore.js";
 import { ACTIVE_STATUSES, RUNNING_STATUSES, STAGE_PROGRESS, isTerminal, toSafeError } from "./jobStates.js";
@@ -18,6 +19,8 @@ export function toJobDto(row) {
     progress: row.progress ?? 0,
     inputType: row.input_type ?? "prompt",
     prompt: row.input_text ?? null,
+    sourceFileId: row.source_file_id ?? null,
+    pageRange: row.page_range ?? null,
     settings: row.settings ?? {},
     safeError: row.error_code ? { code: row.error_code, message: row.safe_error_message } : null,
     learningPlan: row.learning_plan ?? null,
@@ -104,7 +107,6 @@ export function createGenerationService({ config, store, queue, bus, pipelineDep
         { expectStatus: ["persisting"] }
       );
       if (!row) {
-        // Cancelled while persisting: honour the cancel.
         await markCancelled(job.id);
         log?.info({ ...ctx, durationMs: Date.now() - t0 }, "generation cancelled");
         return;
@@ -138,13 +140,57 @@ export function createGenerationService({ config, store, queue, bus, pipelineDep
     return true;
   }
 
+  async function validateSourceForJob({ db, ownerId, inputType, sourceFileId, pageRange }) {
+    if (inputType === "prompt") return;
+    const sf = await store.getSourceFile({ db, ownerId, sourceFileId });
+    if (!sf) {
+      throw new AppError(404, "SOURCE_NOT_FOUND", "Source file not found.");
+    }
+    if (inputType === "pdf" && sf.mime_type !== "application/pdf") {
+      throw new AppError(400, "VALIDATION_ERROR", "Selected source file is not a PDF.");
+    }
+    if (inputType === "image" && !sf.mime_type?.startsWith("image/")) {
+      throw new AppError(400, "VALIDATION_ERROR", "Selected source file is not an image.");
+    }
+    if (inputType === "pdf" && sf.page_count) {
+      try {
+        parsePageRange(pageRange ?? null, sf.page_count, { maxSelected: config.sourceMaxPdfPages ?? 100 });
+      } catch (err) {
+        if (err instanceof SourceExtractionError) {
+          throw new AppError(err.status, err.code, err.message, { cause: err });
+        }
+        throw err;
+      }
+    }
+  }
+
   return {
     get enabled() {
       return config.generation.enabled;
     },
 
-    async createJob({ ownerId, prompt, settings, retryOf = null, attemptCount = 1 }) {
-      const input = { ownerId, inputText: prompt, settings, retryOf, attemptCount };
+    async createJob({
+      db,
+      ownerId,
+      inputType = "prompt",
+      prompt = null,
+      sourceFileId = null,
+      pageRange = null,
+      settings,
+      retryOf = null,
+      attemptCount = 1,
+    }) {
+      await validateSourceForJob({ db, ownerId, inputType, sourceFileId, pageRange });
+      const input = {
+        ownerId,
+        inputType,
+        inputText: prompt ?? null,
+        sourceFileId,
+        pageRange,
+        settings,
+        retryOf,
+        attemptCount,
+      };
       let job;
       try {
         job = await store.insertJob(input);
@@ -160,7 +206,7 @@ export function createGenerationService({ config, store, queue, bus, pipelineDep
         job = await store.insertJob(input);
       }
       queue.enqueue(job.id, (signal) => execute(job, signal));
-      log?.info({ jobId: job.id, userId: ownerId, stage: "queued" }, "generation queued");
+      log?.info({ jobId: job.id, userId: ownerId, inputType, stage: "queued" }, "generation queued");
       return job;
     },
 
@@ -173,7 +219,6 @@ export function createGenerationService({ config, store, queue, bus, pipelineDep
       }
       const outcome = queue.cancel(jobId);
       if (outcome === "aborted") {
-        // The runner finalises to "cancelled" once the in-flight step stops.
         const row = await store.updateJob(jobId, { status: "cancelling", stage: "cancelling" }, { expectStatus: RUNNING_STATUSES });
         if (row) {
           publish(jobId, "stage", { status: "cancelling", stage: "cancelling", progress: row.progress });
@@ -182,7 +227,6 @@ export function createGenerationService({ config, store, queue, bus, pipelineDep
         const latest = await store.getJobStatus({ db, ownerId, jobId });
         return { status: latest?.status ?? "cancelling" };
       }
-      // Queued (removed before starting) or not running in this process: cancel now.
       const row = await markCancelled(jobId);
       if (row) return { status: "cancelled" };
       const latest = await store.getJobStatus({ db, ownerId, jobId });
@@ -199,8 +243,12 @@ export function createGenerationService({ config, store, queue, bus, pipelineDep
         throw new AppError(409, "RETRY_LIMIT_REACHED", "This generation has been retried too many times. Start a new one instead.");
       }
       return this.createJob({
+        db,
         ownerId,
-        prompt: job.input_text,
+        inputType: job.input_type ?? "prompt",
+        prompt: job.input_text ?? null,
+        sourceFileId: job.source_file_id ?? null,
+        pageRange: job.page_range ?? null,
         settings: job.settings ?? {},
         retryOf: job.id,
         attemptCount: (job.attempt_count ?? 1) + 1,

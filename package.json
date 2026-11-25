@@ -29,6 +29,10 @@
     "smoke:live-api": "npm --workspace=@visualify/api run smoke:live-api"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.14.0",
     "@playwright/test": "1.65.1"
+  },
+  "overrides": {
+    "axe-core": "4.14.0"
   }
 }

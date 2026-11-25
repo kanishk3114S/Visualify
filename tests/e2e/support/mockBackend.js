@@ -1,3 +1,5 @@
+import { createNotesMock } from "./notesMocks.js";
+
 /**
  * E2E helpers: a signed-in browser session without a real Supabase project,
  * plus a contract-faithful mock of the Visualify API (standard envelope,
@@ -69,15 +71,16 @@ const fail = (code, message, details = null) => ({ success: false, data: null, e
  * Intercepts /api/v1/* with an in-memory profile. Returns the call log and
  * a handle to the current profile so tests can assert on what was sent.
  */
-export async function mockApi(page, { profile = makeProfile(), takenUsernames = [], failMe = false, generations = null } = {}) {
-  const state = { profile: structuredClone(profile), calls: [], generations };
+export async function mockApi(page, { profile = makeProfile(), takenUsernames = [], failMe = false, generations = null, notes, sources = null } = {}) {
+  const sourceStore = sources ?? new Map();
+  const state = { profile: structuredClone(profile), calls: [], generations, notes: notes === undefined ? createNotesMock({ generations, sources: sourceStore }) : notes, sources: sourceStore };
 
   await page.route(`${API_BASE}/api/v1/**`, async (route) => {
     const req = route.request();
     const url = new URL(req.url());
     const cors = {
       "access-control-allow-origin": APP_ORIGIN,
-      "access-control-allow-methods": "GET,POST,PATCH,DELETE",
+      "access-control-allow-methods": "GET,POST,PUT,PATCH,DELETE",
       "access-control-allow-headers": "Authorization,Content-Type,X-Request-Id",
       "access-control-expose-headers": "X-Request-Id",
     };
@@ -120,8 +123,64 @@ export async function mockApi(page, { profile = makeProfile(), takenUsernames = 
       state.profile = { ...state.profile, avatar_url: null, avatar_url_expires_at: null };
       return json(200, ok({ profile: state.profile }));
     }
+    if (url.pathname === "/api/v1/sources/upload" && req.method() === "POST") {
+      const id = "8a2f6679-7425-40de-944b-e07fc1f90001";
+      const postBuf = req.postDataBuffer() ?? Buffer.alloc(0);
+      const textHint = postBuf.toString("utf8");
+      const isPdf = textHint.includes("%PDF-") || textHint.includes("application/pdf");
+      const sf = isPdf
+        ? {
+            id,
+            originalName: "lecture-notes.pdf",
+            mimeType: "application/pdf",
+            sizeBytes: 42100,
+            pageCount: 18,
+            width: null,
+            height: null,
+            extractionStatus: "uploaded",
+            extractedMetadata: {},
+            previewUrl: null,
+            previewUrlExpiresAt: null,
+            noteId: null,
+            createdAt: new Date().toISOString(),
+          }
+        : {
+            id,
+            originalName: "handwritten-notes.png",
+            mimeType: "image/png",
+            sizeBytes: 18400,
+            pageCount: null,
+            width: 1200,
+            height: 900,
+            extractionStatus: "uploaded",
+            extractedMetadata: {},
+            previewUrl:
+              "data:image/svg+xml;utf8," +
+              encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="120" height="90"><rect width="120" height="90" fill="#ccfbf1"/><text x="16" y="50" font-size="14" fill="#0f172a">Notes PNG</text></svg>'),
+            previewUrlExpiresAt: new Date(Date.now() + 300_000).toISOString(),
+            noteId: null,
+            createdAt: new Date().toISOString(),
+          };
+      state.sources.set(id, sf);
+      state.generations?.sources?.set(id, sf);
+      return json(201, ok({ sourceFile: sf }));
+    }
+    if (url.pathname.startsWith("/api/v1/sources/")) {
+      const sfId = url.pathname.split("/").pop();
+      const sf = state.sources.get(sfId);
+      if (!sf) return json(404, fail("NOT_FOUND", "Source file not found."));
+      if (req.method() === "GET") return json(200, ok({ sourceFile: sf }));
+      if (req.method() === "DELETE") {
+        state.sources.delete(sfId);
+        state.generations?.sources?.delete(sfId);
+        return json(200, ok({ deleted: true }));
+      }
+    }
     if (url.pathname.startsWith("/api/v1/generations") && state.generations) {
       return state.generations.handle({ route, req, url, json, cors, ok, fail, calls: state.calls });
+    }
+    if (/^\/api\/v1\/(notes|folders|exports)(\/|$)/.test(url.pathname) && state.notes) {
+      return state.notes.handle({ route, req, url, json, cors, ok, fail });
     }
     return json(404, fail("NOT_FOUND", "The requested resource was not found."));
   });

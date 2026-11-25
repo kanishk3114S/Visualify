@@ -2,10 +2,11 @@ import { AppError } from "../utils/errors.js";
 import { ACTIVE_STATUSES } from "./jobStates.js";
 
 export const JOB_COLUMNS =
-  "id, owner_id, input_type, input_text, settings, status, stage, progress, learning_plan, scene_json, mermaid_source, warnings, error_code, safe_error_message, model_id, prompt_version, usage, attempt_count, retry_of, created_at, started_at, finished_at, updated_at";
+  "id, owner_id, input_type, input_text, source_file_id, page_range, settings, status, stage, progress, learning_plan, scene_json, mermaid_source, warnings, error_code, safe_error_message, model_id, prompt_version, usage, attempt_count, retry_of, created_at, started_at, finished_at, updated_at";
 
 /** Lightweight columns for status checks (no plan/scene payloads). */
-const STATUS_COLUMNS = "id, owner_id, status, stage, progress, attempt_count, input_text, settings, updated_at";
+const STATUS_COLUMNS =
+  "id, owner_id, input_type, source_file_id, page_range, status, stage, progress, attempt_count, input_text, settings, updated_at";
 
 const PG_UNIQUE_VIOLATION = "23505";
 
@@ -32,8 +33,6 @@ function dbError(error) {
 export class SupabaseJobStore {
   /** @param {import("@supabase/supabase-js").SupabaseClient} admin service-role client */
   constructor(admin) {
-    // admin may be null when no service-role key is configured: owner reads
-    // (getJob) still work; runner writes are unavailable and generation is disabled.
     this._admin = admin ?? null;
   }
 
@@ -42,13 +41,24 @@ export class SupabaseJobStore {
     return this._admin;
   }
 
-  async insertJob({ ownerId, inputText, settings, retryOf = null, attemptCount = 1 }) {
+  async insertJob({
+    ownerId,
+    inputType = "prompt",
+    inputText = null,
+    sourceFileId = null,
+    pageRange = null,
+    settings,
+    retryOf = null,
+    attemptCount = 1,
+  }) {
     const { data, error } = await this.admin
       .from("generation_jobs")
       .insert({
         owner_id: ownerId,
-        input_type: "prompt",
+        input_type: inputType,
         input_text: inputText,
+        source_file_id: sourceFileId,
+        page_range: pageRange,
         settings,
         retry_of: retryOf,
         attempt_count: attemptCount,
@@ -74,6 +84,48 @@ export class SupabaseJobStore {
 
   async getJobStatus({ db, ownerId, jobId }) {
     return this.getJob({ db, ownerId, jobId, columns: STATUS_COLUMNS });
+  }
+
+  /** Owner-scoped read of a source file row via caller's RLS client. */
+  async getSourceFile({ db, ownerId, sourceFileId }) {
+    const { data, error } = await db
+      .from("source_files")
+      .select("id, owner_id, bucket, object_path, original_name, mime_type, size_bytes, page_count, width, height, extraction_status")
+      .eq("id", sourceFileId)
+      .eq("owner_id", ownerId)
+      .maybeSingle();
+    if (error) throw dbError(error);
+    return data;
+  }
+
+  /** Server-side owner-filtered source read for background worker execution. */
+  async getSourceFileForRunner({ sourceFileId, ownerId }) {
+    const { data, error } = await this.admin
+      .from("source_files")
+      .select("id, owner_id, bucket, object_path, original_name, mime_type, size_bytes, page_count, width, height, extraction_status")
+      .eq("id", sourceFileId)
+      .eq("owner_id", ownerId)
+      .maybeSingle();
+    if (error) throw dbError(error);
+    return data;
+  }
+
+  async downloadSourceObject(objectPath) {
+    const { data, error } = await this.admin.storage.from("source-files").download(objectPath);
+    if (error || !data) {
+      throw Object.assign(new Error("Could not download source object"), { code: "SOURCE_NOT_FOUND", cause: error });
+    }
+    const ab = await data.arrayBuffer();
+    return Buffer.from(ab);
+  }
+
+  async updateSourceExtraction(sourceFileId, ownerId, patch) {
+    const { error } = await this.admin
+      .from("source_files")
+      .update(patch)
+      .eq("id", sourceFileId)
+      .eq("owner_id", ownerId);
+    if (error) throw dbError(error);
   }
 
   async findActiveJob(ownerId) {
@@ -102,7 +154,6 @@ export class SupabaseJobStore {
   /** Marks every job left active by a previous process as interrupted. */
   async failInterruptedJobs({ code, message }) {
     const finishedAt = new Date().toISOString();
-    // A job the user was already cancelling simply becomes cancelled.
     const cancelled = await this.admin
       .from("generation_jobs")
       .update({ status: "cancelled", stage: null, finished_at: finishedAt })

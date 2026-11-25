@@ -83,7 +83,16 @@ function jobDto(id, overrides = {}) {
   };
 }
 
-const completed = (id, extra = {}) => jobDto(id, { status: "completed", progress: 100, learningPlan: PLAN, sceneJson: SCENE, finishedAt: new Date().toISOString(), ...extra });
+const completed = (id, extra = {}) =>
+  jobDto(id, {
+    ...extra,
+    status: "completed",
+    stage: null,
+    progress: 100,
+    learningPlan: extra.learningPlan ?? PLAN,
+    sceneJson: extra.sceneJson ?? SCENE,
+    finishedAt: new Date().toISOString(),
+  });
 
 /**
  * scenario:
@@ -94,7 +103,8 @@ const completed = (id, extra = {}) => jobDto(id, { status: "completed", progress
  */
 export function createGenerationMock({ scenario = "complete", activeJobId = null, warnings = [] } = {}) {
   const jobs = new Map();
-  const mock = { jobs, scenario, posted: [], polls: 0, cancelled: [] };
+  const sources = new Map();
+  const mock = { jobs, sources, scenario, posted: [], polls: 0, cancelled: [] };
   let counter = 0;
   const newId = () => `7c9e6679-7425-40de-944b-e07fc1f9${String(++counter).padStart(4, "0")}`;
 
@@ -111,7 +121,18 @@ export function createGenerationMock({ scenario = "complete", activeJobId = null
         return json(409, fail("ACTIVE_JOB_EXISTS", "You already have a visual being generated.", { activeJobId }));
       }
       const jobId = newId();
-      jobs.set(jobId, jobDto(jobId, { prompt: body.prompt, settings: body.settings }));
+      const sf = body.sourceFileId ? sources.get(body.sourceFileId) ?? null : null;
+      jobs.set(
+        jobId,
+        jobDto(jobId, {
+          inputType: body.inputType ?? "prompt",
+          prompt: body.prompt ?? null,
+          sourceFileId: body.sourceFileId ?? null,
+          pageRange: body.pageRange ?? null,
+          sourceFile: sf,
+          settings: body.settings,
+        })
+      );
       return json(202, ok({ jobId, status: "queued" }));
     }
 
@@ -121,22 +142,23 @@ export function createGenerationMock({ scenario = "complete", activeJobId = null
       if (mock.scenario === "drop" && jobs.get(id).status !== "completed") {
         mock.polls += 1;
         // First poll: still planning; afterwards: completed.
-        if (mock.polls >= 2) jobs.set(id, completed(id, { warnings }));
+        if (mock.polls >= 2) jobs.set(id, completed(id, { ...jobs.get(id), warnings }));
         else jobs.set(id, { ...jobs.get(id), status: "planning", stage: "planning", progress: 30 });
       }
       return json(200, ok({ job: jobs.get(id) }));
     }
 
     if (action === "events" && method === "GET") {
+      const currentJob = jobs.get(id);
       const headers = { ...cors, "content-type": "text/event-stream; charset=utf-8", "cache-control": "no-cache" };
       if (mock.scenario === "drop") return json(503, fail("SERVICE_UNAVAILABLE", "Temporarily unavailable."));
       if (mock.scenario === "hold") {
-        jobs.set(id, { ...jobs.get(id), status: "planning", stage: "planning", progress: 25 });
+        jobs.set(id, { ...currentJob, status: "planning", stage: "planning", progress: 25 });
         return route.fulfill({ status: 200, headers, body: sse([["snapshot", { status: "planning", stage: "planning", progress: 25, safeError: null }]]) });
       }
       if (mock.scenario === "fail") {
         const error = { code: "AI_BUSY", message: "The AI service is busy right now. Please try again in a few minutes." };
-        jobs.set(id, jobDto(id, { status: "failed", progress: 12, safeError: error }));
+        jobs.set(id, jobDto(id, { ...currentJob, status: "failed", progress: 12, safeError: error }));
         mock.scenario = "complete"; // a retry will succeed
         return route.fulfill({
           status: 200,
@@ -148,19 +170,43 @@ export function createGenerationMock({ scenario = "complete", activeJobId = null
           ]),
         });
       }
-      jobs.set(id, completed(id, { warnings }));
+      const planForJob =
+        currentJob.inputType === "pdf"
+          ? {
+              ...PLAN,
+              sections: PLAN.sections.map((s, idx) => ({
+                ...s,
+                sourceRefs: [{ page: idx + 2, snippet: "Grounded excerpt from selected PDF page." }],
+              })),
+            }
+          : currentJob.inputType === "image"
+            ? {
+                ...PLAN,
+                sections: PLAN.sections.map((s) => ({
+                  ...s,
+                  sourceRefs: [{ label: "Uploaded image", snippet: "Handwritten note diagram." }],
+                })),
+              }
+            : PLAN;
+      jobs.set(id, completed(id, { ...currentJob, learningPlan: planForJob, warnings }));
+      const events = [
+        ["snapshot", { status: "queued", stage: null, progress: 0, safeError: null }],
+        ["stage", { status: "validating", stage: "validating", progress: 5 }],
+      ];
+      if (currentJob.inputType !== "prompt") {
+        events.push(["stage", { status: "extracting", stage: "extracting", progress: 12 }]);
+      }
+      events.push(
+        ["stage", { status: "planning", stage: "planning", progress: 22 }],
+        ["progress", { progress: 44 }],
+        ["stage", { status: "composing", stage: "composing", progress: 65 }],
+        ["stage", { status: "persisting", stage: "persisting", progress: 92 }],
+        ["completed", { status: "completed", progress: 100 }]
+      );
       return route.fulfill({
         status: 200,
         headers,
-        body: sse([
-          ["snapshot", { status: "queued", stage: null, progress: 0, safeError: null }],
-          ["stage", { status: "validating", stage: "validating", progress: 5 }],
-          ["stage", { status: "planning", stage: "planning", progress: 12 }],
-          ["progress", { progress: 40 }],
-          ["stage", { status: "composing", stage: "composing", progress: 62 }],
-          ["stage", { status: "persisting", stage: "persisting", progress: 92 }],
-          ["completed", { status: "completed", progress: 100 }],
-        ]),
+        body: sse(events),
       });
     }
 

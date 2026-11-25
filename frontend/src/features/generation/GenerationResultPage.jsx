@@ -152,6 +152,7 @@ export function GenerationResultPage() {
         status={status}
         progress={progress}
         prompt={job?.prompt}
+        inputType={job?.inputType ?? "prompt"}
         polling={polling}
         onCancel={onCancel}
         cancelling={cancel.isPending}

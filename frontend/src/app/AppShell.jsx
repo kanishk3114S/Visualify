@@ -7,11 +7,12 @@ import { Avatar } from "../components/Avatar.jsx";
 import { useAuth } from "../features/auth/AuthContext.jsx";
 import { useProfile } from "../hooks/useProfile.js";
 import { useToast } from "../components/Toast.jsx";
+import { ThemeToggle } from "../components/ThemeToggle.jsx";
 
 const NAV = [
   { to: "/app", label: "Dashboard", icon: LayoutDashboard, end: true },
   { to: "/app/create", label: "Create", icon: Sparkles },
-  { label: "My Notes", icon: FolderOpen, soon: true },
+  { to: "/app/notes", label: "My Notes", icon: FolderOpen },
   { to: "/app/profile", label: "Profile", icon: User },
   { to: "/app/settings", label: "Settings", icon: Settings },
 ];
@@ -95,6 +96,7 @@ function UserFooter({ rail = false }) {
         </p>
         {profile?.username && <p className="truncate text-xs text-stone-500">@{profile.username}</p>}
       </div>
+      <ThemeToggle compact align="up" />
       <button
         type="button"
         onClick={handleSignOut}
@@ -113,7 +115,9 @@ function UserFooter({ rail = false }) {
 export function AppShell() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
-  const fullWidth = useMatches().some((m) => m.handle?.fullWidth);
+  const matches = useMatches();
+  const fullWidth = matches.some((m) => m.handle?.fullWidth);
+  const wide = matches.some((m) => m.handle?.wide);
 
   useEffect(() => setMobileOpen(false), [location.pathname]);
   useEffect(() => {
@@ -127,13 +131,13 @@ export function AppShell() {
     <div className="min-h-dvh lg:flex" data-testid="app-shell">
       <a
         href="#main-content"
-        className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-50 focus:rounded-md focus:bg-white focus:px-3 focus:py-2 focus:shadow"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-50 focus:rounded-md focus:bg-surface focus:px-3 focus:py-2 focus:shadow"
       >
         Skip to content
       </a>
 
       {/* Mobile top bar */}
-      <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-stone-200 bg-white/95 px-4 lg:hidden">
+      <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-stone-200 bg-surface/95 px-4 lg:hidden">
         <Logo to="/app" />
         <button
           type="button"
@@ -148,14 +152,14 @@ export function AppShell() {
       </header>
 
       {mobileOpen && (
-        <div className="fixed inset-0 z-30 bg-stone-900/30 lg:hidden" aria-hidden="true" onClick={() => setMobileOpen(false)} />
+        <div className="fixed inset-0 z-30 bg-black/40 lg:hidden" aria-hidden="true" onClick={() => setMobileOpen(false)} />
       )}
 
       <nav
         id="app-nav"
         aria-label="Main"
         className={clsx(
-          "fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-stone-200 bg-white transition-transform lg:sticky lg:top-0 lg:h-dvh lg:translate-x-0",
+          "fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-stone-200 bg-surface transition-transform lg:sticky lg:top-0 lg:h-dvh lg:translate-x-0",
           // The workspace needs the width: collapse to an icon rail on large screens.
           fullWidth && "lg:w-16",
           // Closed mobile drawer is also `invisible`, so it can't take keyboard focus off-screen.
@@ -175,7 +179,7 @@ export function AppShell() {
         {fullWidth ? (
           <Outlet />
         ) : (
-          <div className="mx-auto max-w-4xl">
+          <div className={clsx("mx-auto", wide ? "max-w-6xl" : "max-w-4xl")}>
             <Outlet />
           </div>
         )}

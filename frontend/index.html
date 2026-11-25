@@ -7,6 +7,20 @@
     <meta name="referrer" content="strict-origin-when-cross-origin" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>Visualify</title>
+    <!-- Pre-paint theme (same rules as src/lib/theme.js) to avoid a flash of the wrong theme. -->
+    <script>
+      (function () {
+        try {
+          var m = localStorage.getItem("visualify:theme");
+          if (m !== "light" && m !== "dark" && m !== "system") m = "system";
+          var d = m === "dark" || (m === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+          var r = document.documentElement;
+          if (d) r.classList.add("dark");
+          r.style.colorScheme = d ? "dark" : "light";
+          r.setAttribute("data-theme", d ? "dark" : "light");
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

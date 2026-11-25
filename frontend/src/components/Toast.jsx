@@ -6,9 +6,9 @@ const ToastContext = createContext(null);
 const DURATION_MS = 5000;
 
 const TONES = {
-  success: { icon: CheckCircle2, className: "border-accent-100 bg-white text-stone-900", iconClass: "text-accent-700" },
-  error: { icon: AlertTriangle, className: "border-red-200 bg-white text-stone-900", iconClass: "text-red-700" },
-  info: { icon: Info, className: "border-stone-200 bg-white text-stone-900", iconClass: "text-stone-600" },
+  success: { icon: CheckCircle2, className: "border-accent-100 bg-surface text-stone-900", iconClass: "text-accent-700" },
+  error: { icon: AlertTriangle, className: "border-red-200 bg-surface text-stone-900", iconClass: "text-red-700" },
+  info: { icon: Info, className: "border-stone-200 bg-surface text-stone-900", iconClass: "text-stone-600" },
 };
 
 function ToastItem({ toast, onDismiss }) {
@@ -19,7 +19,10 @@ function ToastItem({ toast, onDismiss }) {
   }, [toast.id, onDismiss]);
   return (
     <li
-      className={clsx("pointer-events-auto flex w-full items-start gap-3 rounded-lg border px-4 py-3 shadow-lg", className)}
+      className={clsx(
+        "animate-fade-up pointer-events-auto relative overflow-hidden flex w-full items-start gap-3 rounded-lg border px-4 py-3 shadow-lg",
+        className
+      )}
       data-testid="toast"
     >
       <Icon className={clsx("mt-0.5 h-5 w-5 shrink-0", iconClass)} aria-hidden="true" />
@@ -27,11 +30,12 @@ function ToastItem({ toast, onDismiss }) {
       <button
         type="button"
         onClick={() => onDismiss(toast.id)}
-        className="-m-1 rounded p-1 text-stone-500 hover:bg-stone-100 hover:text-stone-800"
+        className="-m-1 rounded p-1 text-stone-500 transition-colors hover:bg-stone-100 hover:text-stone-800"
         aria-label="Dismiss notification"
       >
         <X className="h-4 w-4" aria-hidden="true" />
       </button>
+      <span className="animate-toast-progress absolute inset-x-0 bottom-0 h-0.5 bg-accent-700/40" aria-hidden="true" />
     </li>
   );
 }

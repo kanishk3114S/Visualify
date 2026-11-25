@@ -85,7 +85,7 @@ export function AvatarUploader({ profile }) {
           size="xl"
         />
         {previewUrl && (
-          <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 rounded-full bg-stone-900 px-2 py-0.5 text-[11px] font-medium text-white">
+          <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 rounded-full bg-stone-900 px-2 py-0.5 text-[11px] font-medium text-stone-50">
             Preview
           </span>
         )}
@@ -104,6 +104,7 @@ export function AvatarUploader({ profile }) {
           accept={AVATAR_MIME_TYPES.join(",")}
           className="sr-only"
           onChange={onPick}
+          aria-label="Choose profile photo"
           aria-describedby={error ? "avatar-error" : undefined}
           data-testid="avatar-file-input"
         />

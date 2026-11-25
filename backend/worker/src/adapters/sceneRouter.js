@@ -1,5 +1,6 @@
 import { buildMermaidSource } from "./mermaidAdapter.js";
 import { buildComparisonScene, buildMindmapScene } from "./directSceneAdapter.js";
+import { styleConvertedScene } from "./diagramTheme.js";
 import { convertMermaidToExcalidraw } from "../renderer/cliRenderer.js";
 import { validateExcalidrawScene } from "../schemas/excalidrawScene.js";
 
@@ -19,7 +20,7 @@ export const ADAPTER_ROUTING_TABLE = Object.freeze({
  */
 export async function compileDiagramSpecToScene(
   diagramSpec,
-  { mermaidConverter = convertMermaidToExcalidraw, browserPath, timeoutMs, signal } = {}
+  { visualStyle = "hand_drawn_clean", mermaidConverter = convertMermaidToExcalidraw, browserPath, timeoutMs, signal } = {}
 ) {
   if (!diagramSpec || !diagramSpec.kind) {
     throw new Error("diagramSpec with valid kind is required");
@@ -42,15 +43,15 @@ export async function compileDiagramSpecToScene(
       timeoutMs,
       signal,
     });
-    scene = converted.scene;
+    scene = styleConvertedScene(converted.scene, { visualStyle, kind: diagramSpec.kind });
     conversionLatencyMs = converted.latencyMs;
   } else if (diagramSpec.kind === "mindmap") {
     const t0 = Date.now();
-    scene = buildMindmapScene(diagramSpec);
+    scene = buildMindmapScene(diagramSpec, { visualStyle });
     conversionLatencyMs = Date.now() - t0;
   } else if (diagramSpec.kind === "comparison") {
     const t0 = Date.now();
-    scene = buildComparisonScene(diagramSpec);
+    scene = buildComparisonScene(diagramSpec, { visualStyle });
     conversionLatencyMs = Date.now() - t0;
   }
 
