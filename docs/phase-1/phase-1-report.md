@@ -1,7 +1,7 @@
 # Visualify — Phase 1 Report: Foundation, Identity, RLS & App Shell
 
 **Date:** 25 November 2026
-**Status:** Implemented and verified offline. **Live Supabase verification NOT RUN** (blocked on project credentials; see §5).
+**Status:** Implemented and verified offline. Live Supabase project connected and partly verified (§4b). **Phase 1 is NOT closed:** the migrations have not been applied to the live project yet, and `test:rls:live` is blocked on `SUPABASE_SERVICE_ROLE_KEY` (§5).
 
 ---
 
@@ -53,9 +53,55 @@ All new dependencies are pinned exactly, at versions at least two weeks old on n
 | Secret scans | No server secrets in `frontend/src` or `frontend/dist`. The only match was supabase-js library code checking whether a key starts with `sb_secret_`. Frontend reads only the 3 `VITE_*` variables. All `.env.local` paths are git-ignored; only `.env.example` files are tracked. |
 | `npm audit --omit=dev -w @visualify/api` | 0 vulnerabilities |
 
+## 4b. Live Supabase verification (25 November 2026)
+
+No keys, project refs or tokens appear in this report.
+
+**Env file cleanup**
+- The real `SUPABASE_URL`/`SUPABASE_PUBLISHABLE_KEY` had been placed in the tracked `backend/.env.example` (uncommitted). They were moved to `backend/.env.local`, and `backend/.env.example` was restored to its placeholders (`git diff` on it is now empty).
+- `frontend/.env` was renamed to `frontend/.env.local`, so all local config follows the `.env.local` convention.
+- `git status --ignored` shows `backend/.env.local`, `frontend/.env.local` and `backend/worker/.env.local` as ignored (`!!`).
+- A value-based scan shows neither real value in any tracked file or anywhere in git history.
+- Both keys are `sb_publishable_` keys (not secret keys) for the same project.
+- **Disclosure:** during the history check, a failed `git grep` command echoed the project ref and the publishable key into one terminal output. That key is browser-public by design (it is bundled into the frontend), but rotating it in the Supabase dashboard is reasonable if that output may be shared. The service-role key was never present or printed.
+
+**Live project state (probed with the publishable key)**
+
+| Probe | Result | Meaning |
+| :--- | :--- | :--- |
+| `GET /auth/v1/health` | 200 | Auth reachable |
+| `GET /rest/v1/profiles` (anon) | 404 `PGRST205` table not found | **Migration 0001 NOT applied** |
+| `GET /storage/v1/object/public/avatars/…` | 400 "Bucket not found" | **Migration 0002 NOT applied** |
+| `GET /auth/v1/settings` | email: on, confirm email: required, signups: open, **google: disabled** | Google OAuth not configured yet |
+
+The Supabase CLI isn't installed or linked here and no DB credentials are available, so the migrations were **not** applied (that needs the owner's action; see §6).
+
+**Live API (real `server.js`, real Supabase Auth)**
+
+| Check | Result |
+| :--- | :--- |
+| `GET /api/v1/health` | **200** `{ success: true, data: { status: "ok", checks: { api: "ok", supabase: "ok" } } }`, no URL/key/version leaked in body or headers |
+| `GET /api/v1/me` without a token | **401** `UNAUTHORIZED` |
+| `GET /api/v1/me` with a forged JWT (verified by live Supabase Auth) | **401** `INVALID_TOKEN` |
+| Request from `https://evil.example` | **403** `CORS_NOT_ALLOWED` |
+| API log | 7 lines; no ref, key, token or `authorization` field |
+
+**Live frontend (real Vite + `frontend/.env.local` + real API, headless Chrome)**
+- `/features`, `/signup` and `/login` render with **0** console/page errors, and the real Supabase client initialises (no config-error screen).
+- `/app/profile` redirects to `/login?returnTo=%2Fapp%2Fprofile`.
+- Signing in with a non-existent account makes a real `POST /auth/v1/token` round trip and shows "Email or password is incorrect." The only console entry is the browser's expected 400 for that request. No account or data was created.
+
+**Not run live (blocked):** the signup → `GET /me` → `PATCH /me` → avatar upload/delete flow, because the `profiles` table and `avatars` bucket don't exist yet. Also blocked are `npm run test:rls:live` and Google OAuth.
+
+**Post-change regression:** `npm test` (38 + 133 + 26 + 31) all pass, `npm run build:frontend` passes, `npx playwright test` 31/31. The bundle scan finds no Gemini key, service-role key, `sb_secret_` key or service-role JWT. The only Google-style `AIza…` string is `@excalidraw/excalidraw`'s own public Firebase relay config, in the lazy editor-preview chunk (already noted in Phase 0).
+
 ## 5. Remaining issues / not verified
 
-- **NOT RUN (BLOCKED on Supabase credentials):** `npm run test:rls:live`, and any real signup, email verification, password recovery or Google OAuth round trip. The API tests use an in-memory Supabase double; the E2E tests mock `/api/v1` and seed a fake session. Complete `supabase/README.md` §2–§7, then run `npm run test:rls:live` and a manual click-through.
+- **Migrations not applied to the live project.** Run `supabase/migrations/0001_profiles_and_rls.sql`, then `0002_avatars_storage_bucket.sql` (SQL Editor or `supabase db push`; see `supabase/README.md` §2).
+- **`npm run test:rls:live`: NOT RUN (BLOCKED on SUPABASE_SERVICE_ROLE_KEY in backend/.env.local)**. It also needs the migrations applied first. The skip message now names the exact missing variable.
+- **Live profile/avatar flow and email-verification/password-reset round trips:** not run (need the migrations, then a real inbox). The API tests use an in-memory Supabase double; the E2E tests mock `/api/v1` and seed a fake session.
+- **Google OAuth:** disabled on the project. Configure it per `supabase/README.md` §5, then do a manual click-through.
+- **Auth URL configuration** (Site URL + `/auth/callback`, `/reset-password` redirect URLs) and minimum password length 8 could not be inspected with the publishable key. Confirm per `supabase/README.md` §3–§4.
 - **Staging is not live** (PRD Phase 1 exit criterion). No hosting accounts were configured. When the frontend is hosted, add the security headers/CSP at the host layer (e.g. `vercel.json`). The CSP must allow the Supabase origin, the API origin, and Excalidraw's font CDN if the editor preview is kept.
 - `npm audit` reports advisories in `katex`/`lodash-es`/`mermaid`, pulled in by `@excalidraw/excalidraw` and `@excalidraw/cli`. These versions are identical to the Phase 0 lockfile and need an upstream Excalidraw update.
 - Main JS chunk is 680 kB (201 kB gzipped): React, supabase-js, router, Query and Zod. Route-level code splitting is a reasonable later optimisation.
@@ -64,4 +110,9 @@ All new dependencies are pinned exactly, at versions at least two weeks old on n
 
 ## 6. Next priority
 
-Connect a real Supabase dev project. Apply the migrations, configure Auth URLs and Google, and fill both `.env.local` files. Then run `npm run test:rls:live` plus a manual signup → verify → profile → avatar → sign-out walkthrough. That closes the only open Phase 1 exit criterion besides staging.
+1. Apply both migrations to the dev project and run the verification queries in `supabase/README.md` §2.
+2. Add `SUPABASE_SERVICE_ROLE_KEY` to `backend/.env.local` only, then run `npm run test:rls:live`. It creates and deletes two throwaway users.
+3. Do a manual signup → email confirm → profile edit → avatar upload/remove → sign-out walkthrough with `npm run dev:api` and `npm run dev:frontend`.
+4. Enable Google OAuth and click through once.
+
+Completing these, plus a staging deployment, closes Phase 1.

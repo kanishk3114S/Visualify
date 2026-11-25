@@ -25,9 +25,12 @@ if (fs.existsSync(envPath)) dotenv.config({ path: envPath, quiet: true, override
 
 const { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, SUPABASE_SERVICE_ROLE_KEY, NODE_ENV } = process.env;
 const placeholder = (v) => !v || /your[-_]|YOUR_/i.test(v);
+const missing = Object.entries({ SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, SUPABASE_SERVICE_ROLE_KEY })
+  .filter(([, value]) => placeholder(value))
+  .map(([name]) => name);
 const BLOCKED =
-  placeholder(SUPABASE_URL) || placeholder(SUPABASE_PUBLISHABLE_KEY) || placeholder(SUPABASE_SERVICE_ROLE_KEY)
-    ? "NOT RUN (BLOCKED on Supabase credentials in backend/.env.local)"
+  missing.length > 0
+    ? `NOT RUN (BLOCKED on ${missing.join(", ")} in backend/.env.local)`
     : NODE_ENV === "production"
       ? "NOT RUN (refusing to run against NODE_ENV=production)"
       : false;
