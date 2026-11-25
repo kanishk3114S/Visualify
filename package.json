@@ -3,21 +3,28 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Visualify Phase 0 technical spike workspace",
+  "description": "Visualify monorepo: React frontend, Express API and generation worker",
   "engines": {
     "node": ">=22.0.0"
   },
   "workspaces": [
     "frontend",
+    "backend",
     "backend/worker"
   ],
   "scripts": {
     "dev:frontend": "npm --workspace=frontend run dev",
+    "dev:api": "npm --workspace=@visualify/api run dev",
     "build:frontend": "npm --workspace=frontend run build",
-    "test": "npm --workspace=backend/worker run test",
+    "test": "npm --workspace=backend/worker run test && npm --workspace=@visualify/api run test && npm --workspace=@visualify/api run test:rls:sql && npm --workspace=@visualify/frontend run test",
+    "test:worker": "npm --workspace=backend/worker run test",
+    "test:api": "npm --workspace=@visualify/api run test",
+    "test:rls:sql": "npm --workspace=@visualify/api run test:rls:sql",
+    "test:rls:live": "npm --workspace=@visualify/api run test:rls:live",
     "test:e2e": "playwright test",
     "spike:local": "npm --workspace=backend/worker run spike:local",
-    "spike:gemini": "npm --workspace=backend/worker run spike:gemini"
+    "spike:gemini": "npm --workspace=backend/worker run spike:gemini",
+    "test:frontend": "npm --workspace=@visualify/frontend run test"
   },
   "devDependencies": {
     "@playwright/test": "1.65.1"
