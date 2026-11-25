@@ -20,6 +20,8 @@ import { ProfilePage } from "../features/profile/ProfilePage.jsx";
 import { SettingsPage } from "../features/profile/SettingsPage.jsx";
 import { AccountSettingsPage } from "../features/profile/AccountSettingsPage.jsx";
 import { PreferencesPage } from "../features/profile/PreferencesPage.jsx";
+import { CreatePage } from "../features/create/CreatePage.jsx";
+import { GenerationResultPage } from "../features/generation/GenerationResultPage.jsx";
 
 // Excalidraw (~MBs) is only downloaded when the editor preview is opened.
 const ExcalidrawSpikePage = lazy(() => import("../features/spike/ExcalidrawSpikePage.jsx"));
@@ -58,6 +60,9 @@ export const router = createBrowserRouter([
             element: <AppShell />,
             children: [
               { index: true, element: <DashboardPage /> },
+              { path: "create", element: <CreatePage /> },
+              // Full-bleed: the workspace manages its own layout (PRD 6.4).
+              { path: "generations/:jobId", element: <GenerationResultPage />, handle: { fullWidth: true } },
               { path: "profile", element: <ProfilePage /> },
               { path: "settings", element: <SettingsPage /> },
               { path: "settings/account", element: <AccountSettingsPage /> },

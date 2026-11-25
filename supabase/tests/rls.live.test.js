@@ -148,3 +148,62 @@ test("avatars bucket is private (no public URL access)", opts, async () => {
   const res = await fetch(data.publicUrl);
   assert.notEqual(res.status, 200);
 });
+
+// ---------------------------------------------------------------------------
+// generation_jobs (migration 0003)
+// ---------------------------------------------------------------------------
+let JOBS_BLOCKED = BLOCKED;
+if (!BLOCKED) {
+  const probe = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, clientOpts);
+  const { error } = await probe.from("generation_jobs").select("id").limit(1);
+  if (error?.code === "PGRST205" || error?.code === "42P01") {
+    JOBS_BLOCKED = "NOT RUN (BLOCKED: apply supabase/migrations/0003_generation_jobs.sql to this project first)";
+  } else if (error) {
+    JOBS_BLOCKED = `NOT RUN (generation_jobs probe failed with code ${error.code})`;
+  }
+  if (JOBS_BLOCKED) console.log(`# generation_jobs: ${JOBS_BLOCKED}`);
+}
+const jobsOpts = { skip: JOBS_BLOCKED };
+const newJob = (client, ownerId, text = "Explain TCP") =>
+  client.from("generation_jobs").insert({ owner_id: ownerId, input_text: text, settings: { detail: "standard" } }).select("id, status, progress").single();
+
+test("generation_jobs: owner creates a queued job and reads it; user B and anon cannot see it", jobsOpts, async () => {
+  const { data: job, error } = await newJob(A.client, A.id);
+  assert.equal(error, null);
+  assert.deepEqual({ status: job.status, progress: job.progress }, { status: "queued", progress: 0 });
+  const mine = await A.client.from("generation_jobs").select("id").eq("id", job.id);
+  assert.equal(mine.data.length, 1);
+  const theirs = await B.client.from("generation_jobs").select("id").eq("id", job.id);
+  assert.deepEqual(theirs.data, []);
+  const anon = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, clientOpts);
+  const anonRead = await anon.from("generation_jobs").select("id").limit(1);
+  assert.ok(anonRead.error || anonRead.data.length === 0);
+});
+
+test("generation_jobs: one active job per user is enforced by the database", jobsOpts, async () => {
+  const second = await newJob(A.client, A.id, "Another topic");
+  assert.equal(second.error?.code, "23505");
+});
+
+test("generation_jobs: user B cannot insert for A, cancel A's job, or delete it", jobsOpts, async () => {
+  const forged = await newJob(B.client, A.id);
+  assert.ok(forged.error, "insert for another owner must fail");
+  const { data: active } = await A.client.from("generation_jobs").select("id").eq("owner_id", A.id).eq("status", "queued").single();
+  const cancel = await B.client.from("generation_jobs").update({ status: "cancelling" }).eq("id", active.id).select();
+  assert.deepEqual(cancel.data ?? [], []);
+  const del = await B.client.from("generation_jobs").delete().eq("id", active.id).select();
+  assert.deepEqual(del.data ?? [], []);
+});
+
+test("generation_jobs: owners cannot forge results, only request cancellation", jobsOpts, async () => {
+  const { data: active } = await A.client.from("generation_jobs").select("id").eq("owner_id", A.id).eq("status", "queued").single();
+  const forgeStatus = await A.client.from("generation_jobs").update({ status: "completed" }).eq("id", active.id).select();
+  assert.ok(forgeStatus.error || (forgeStatus.data ?? []).length === 0, "owner must not mark a job completed");
+  const forgeScene = await A.client.from("generation_jobs").update({ scene_json: { elements: [] } }).eq("id", active.id).select();
+  assert.ok(forgeScene.error, "owner must not write scene_json");
+  const forgeInsert = await A.client.from("generation_jobs").insert({ owner_id: A.id, input_text: "x", status: "completed" }).select();
+  assert.ok(forgeInsert.error, "owner must not insert a completed job");
+  const cancel = await A.client.from("generation_jobs").update({ status: "cancelled" }).eq("id", active.id).select("status").single();
+  assert.equal(cancel.error, null);
+  assert.equal(cancel.data.status, "cancelled");
+});

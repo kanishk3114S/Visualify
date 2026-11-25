@@ -19,7 +19,7 @@ export const ADAPTER_ROUTING_TABLE = Object.freeze({
  */
 export async function compileDiagramSpecToScene(
   diagramSpec,
-  { mermaidConverter = convertMermaidToExcalidraw, browserPath, timeoutMs } = {}
+  { mermaidConverter = convertMermaidToExcalidraw, browserPath, timeoutMs, signal } = {}
 ) {
   if (!diagramSpec || !diagramSpec.kind) {
     throw new Error("diagramSpec with valid kind is required");
@@ -40,6 +40,7 @@ export async function compileDiagramSpecToScene(
       mermaidSource,
       browserPath,
       timeoutMs,
+      signal,
     });
     scene = converted.scene;
     conversionLatencyMs = converted.latencyMs;

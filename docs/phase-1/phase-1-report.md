@@ -44,7 +44,7 @@ All new dependencies are pinned exactly, at versions at least two weeks old on n
 | Command | Result |
 | :--- | :--- |
 | `npm test` (worker) | **38/38 passed**: Phase 0 baseline intact |
-| `npm run test:api` | **133/133 passed**: health, auth middleware, `/me` CRUD + validation + ownership, avatar magic bytes / size / dimensions / EXIF stripping / rollback / old-object cleanup, Helmet headers, CORS, rate limits, log redaction, no stack traces, config validation |
+| `npm run test:api` | **133/133 passed** (*correction, 26 Nov 2026: this count wrongly included the 38 worker tests, because the API Vitest run also picked up `backend/worker/tests`. The real Phase 1 API count was **95/95**. All tests passed either way; fixed with `backend/vitest.config.js`, see the Phase 2 report.*): health, auth middleware, `/me` CRUD + validation + ownership, avatar magic bytes / size / dimensions / EXIF stripping / rollback / old-object cleanup, Helmet headers, CORS, rate limits, log redaction, no stack traces, config validation |
 | `npm run test:rls:sql` | **26/26 passed**: trigger (including fallbacks and truncation), cascade, grants, RLS for all 4 commands, cross-user denial on profiles and storage, anon denial, constraints, idempotent re-apply |
 | `npm run test:frontend` | **31/31 passed**: `returnTo` sanitizer |
 | `npx playwright test` | **31/31 passed**: public pages with zero console errors, guard redirects with no protected-UI flash, open-redirect cases, form validation, callback/reset error states, mocked-API profile/avatar/preferences/account flows, sign-out, mobile nav and overflow, **Phase 0 Excalidraw spec** |

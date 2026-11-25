@@ -1,5 +1,6 @@
 import { env } from "./env.js";
 import { supabase } from "./supabase.js";
+import { readSseStream } from "./sse.js";
 
 /** Normalised API failure carrying the server's safe code/message/details. */
 export class ApiError extends Error {
@@ -22,12 +23,33 @@ function newRequestId() {
  * supabase.auth.getSession() returns a refreshed token when needed, so the
  * client never manages refresh itself. Accepts JSON `body` or `formData`.
  */
-export async function apiRequest(path, { method = "GET", body, formData, signal } = {}) {
+/** Request-id + Bearer headers. supabase-js refreshes the token when needed. */
+async function baseHeaders() {
   const headers = { "X-Request-Id": newRequestId() };
-
   const { data } = (await supabase?.auth.getSession()) ?? { data: { session: null } };
   const token = data.session?.access_token;
   if (token) headers.Authorization = `Bearer ${token}`;
+  return headers;
+}
+
+async function errorFromResponse(response) {
+  let envelope = null;
+  try {
+    envelope = await response.json();
+  } catch {
+    /* non-JSON */
+  }
+  return new ApiError({
+    status: response.status,
+    code: envelope?.error?.code ?? "UNEXPECTED_RESPONSE",
+    message: envelope?.error?.message ?? "Something went wrong. Please try again.",
+    details: envelope?.error?.details ?? null,
+    requestId: envelope?.meta?.requestId ?? response.headers.get("X-Request-Id"),
+  });
+}
+
+export async function apiRequest(path, { method = "GET", body, formData, signal } = {}) {
+  const headers = await baseHeaders();
 
   let payload;
   if (formData) {
@@ -92,4 +114,30 @@ export const meApi = {
     return apiRequest("/me/avatar", { method: "POST", formData }).then((d) => d.profile);
   },
   removeAvatar: () => apiRequest("/me/avatar", { method: "DELETE" }).then((d) => d.profile),
+};
+
+const jobPath = (jobId) => `/generations/${encodeURIComponent(jobId)}`;
+
+export const generationsApi = {
+  create: (body) => apiRequest("/generations", { method: "POST", body }),
+  get: (jobId, { signal } = {}) => apiRequest(jobPath(jobId), { signal }).then((d) => d.job),
+  cancel: (jobId) => apiRequest(`${jobPath(jobId)}/cancel`, { method: "POST" }),
+  retry: (jobId) => apiRequest(`${jobPath(jobId)}/retry`, { method: "POST" }),
+
+  /**
+   * Opens the job's SSE stream with fetch + Authorization header (never a
+   * token in the URL) and calls onEvent for each event. Resolves when the
+   * server closes the stream; rejects on HTTP or network errors.
+   */
+  async streamEvents(jobId, { signal, onEvent }) {
+    const headers = { ...(await baseHeaders()), Accept: "text/event-stream" };
+    const response = await fetch(`${env.apiBaseUrl}/api/v1${jobPath(jobId)}/events`, {
+      headers,
+      signal,
+      credentials: "omit",
+      cache: "no-store",
+    });
+    if (!response.ok || !response.body) throw await errorFromResponse(response);
+    await readSseStream(response.body, onEvent, { signal });
+  },
 };

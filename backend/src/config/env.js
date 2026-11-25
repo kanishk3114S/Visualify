@@ -60,13 +60,25 @@ const envSchema = z.object({
   FRONTEND_ORIGIN: originSchema,
   SUPABASE_URL: z.url({ protocol: /^https?$/ }),
   SUPABASE_PUBLISHABLE_KEY: z.string().min(20),
-  // Optional and unused by Phase 1 request paths (least privilege).
+  // Server-only. Used exclusively by the in-process generation job runner to
+  // write pipeline results (users can only create/read/cancel their jobs).
   SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
+  // Generation (Phase 2). The key itself is read by the worker module from the
+  // process environment; config only records whether it is configured.
+  GEMINI_API_KEY: z.string().optional(),
+  GEMINI_MODEL: z.string().trim().min(1).max(100).default("gemini-3.5-flash"),
+  GENERATION_MAX_CONCURRENCY: z.coerce.number().int().min(1).max(10).default(2),
+  GENERATION_PLANNER_TIMEOUT_MS: z.coerce.number().int().min(5000).max(180000).default(90000),
+  GENERATION_JOB_TIMEOUT_MS: z.coerce.number().int().min(10000).max(600000).default(240000),
+  EXCALIDRAW_BROWSER_PATH: z.string().optional(),
+  CLI_RENDER_TIMEOUT_MS: z.coerce.number().int().min(1000).max(120000).default(30000),
   AVATAR_MAX_BYTES: z.coerce.number().int().min(1024).max(MAX_AVATAR_BYTES_CEILING).default(2097152),
   AVATAR_SIGNED_URL_TTL_SECONDS: z.coerce.number().int().min(30).max(3600).default(300),
   TRUST_PROXY: booleanString,
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"]).optional(),
 });
+
+const isConfigured = (value) => typeof value === "string" && value.trim().length > 0 && !/YOUR_|your[-_]/.test(value);
 
 /**
  * Validates environment variables and returns a frozen config object.
@@ -91,6 +103,17 @@ export function loadConfig(env = process.env) {
     avatarMaxBytes: e.AVATAR_MAX_BYTES,
     avatarSignedUrlTtlSeconds: e.AVATAR_SIGNED_URL_TTL_SECONDS,
     trustProxy: e.TRUST_PROXY,
+    supabaseServiceRoleKey: isConfigured(e.SUPABASE_SERVICE_ROLE_KEY) ? e.SUPABASE_SERVICE_ROLE_KEY : null,
+    generation: Object.freeze({
+      // Both server secrets are required; otherwise generation endpoints return 503.
+      enabled: isConfigured(e.SUPABASE_SERVICE_ROLE_KEY) && isConfigured(e.GEMINI_API_KEY),
+      model: e.GEMINI_MODEL,
+      maxConcurrency: e.GENERATION_MAX_CONCURRENCY,
+      plannerTimeoutMs: e.GENERATION_PLANNER_TIMEOUT_MS,
+      jobTimeoutMs: e.GENERATION_JOB_TIMEOUT_MS,
+      browserPath: e.EXCALIDRAW_BROWSER_PATH?.trim() || undefined,
+      cliTimeoutMs: e.CLI_RENDER_TIMEOUT_MS,
+    }),
     logLevel: e.LOG_LEVEL ?? (e.NODE_ENV === "test" ? "silent" : e.NODE_ENV === "production" ? "info" : "debug"),
   });
 }

@@ -22,6 +22,7 @@ const read = (rel) => fs.readFileSync(path.join(ROOT, rel), "utf8");
 const MIGRATIONS = [
   "migrations/0001_profiles_and_rls.sql",
   "migrations/0002_avatars_storage_bucket.sql",
+  "migrations/0003_generation_jobs.sql",
 ];
 
 let db;
@@ -345,4 +346,171 @@ test("avatar policies do not grant access to other buckets", async () => {
     ),
     /row-level security/
   );
+});
+
+// ---------------------------------------------------------------------------
+// generation_jobs (0003)
+// ---------------------------------------------------------------------------
+const insertJob = (tx, owner, text = "Explain TCP") =>
+  tx.query(
+    `insert into public.generation_jobs (owner_id, input_text, settings) values ($1, $2, '{"detail":"standard"}') returning *`,
+    [owner, text]
+  );
+
+/** Server-side (table owner, like the service role) helper creating a job in a given status. */
+async function serverJob(owner, status = "completed") {
+  const extra = {
+    completed: `, learning_plan = '{"title":"t"}', scene_json = '{"elements":[]}', progress = 100`,
+    failed: `, error_code = 'X', safe_error_message = 'Something went wrong'`,
+  }[status] ?? "";
+  const { rows } = await db.query(
+    `insert into public.generation_jobs (owner_id, input_text) values ($1, 'seed') returning id`,
+    [owner]
+  );
+  await db.query(`update public.generation_jobs set status = $2 ${extra} where id = $1`, [rows[0].id, status]);
+  return rows[0].id;
+}
+
+const clearJobs = (...owners) => db.query(`delete from public.generation_jobs where owner_id = any($1::uuid[])`, [owners]);
+
+test("generation_jobs: RLS enabled, 4 owner-scoped policies, none USING (true)", async () => {
+  const { rows: rls } = await db.query(`select relrowsecurity from pg_class where oid = 'public.generation_jobs'::regclass`);
+  assert.equal(rls[0].relrowsecurity, true);
+  const { rows } = await db.query(`select cmd, qual, with_check, roles from pg_policies where tablename = 'generation_jobs'`);
+  assert.deepEqual(rows.map((r) => r.cmd).sort(), ["DELETE", "INSERT", "SELECT", "UPDATE"]);
+  for (const r of rows) {
+    assert.deepEqual(r.roles, ["authenticated"]);
+    assert.notEqual((r.qual ?? "").trim(), "true");
+    assert.match(`${r.qual ?? ""} ${r.with_check ?? ""}`, /owner_id/);
+  }
+});
+
+test("generation_jobs: owner can create a queued job and read it back", async () => {
+  await clearJobs(userA.id);
+  const row = await asUser(userA.id, async (tx) => {
+    const created = (await insertJob(tx, userA.id)).rows[0];
+    const read = (
+      await tx.query(`select id, status, progress, attempt_count from public.generation_jobs where id = $1`, [created.id])
+    ).rows[0];
+    return { created, read };
+  });
+  assert.equal(row.created.status, "queued");
+  assert.deepEqual(row.read, { id: row.created.id, status: "queued", progress: 0, attempt_count: 1 });
+});
+
+test("generation_jobs: clients cannot forge status/progress/results on insert", async () => {
+  for (const sql of [
+    `insert into public.generation_jobs (owner_id, input_text, status) values ($1, 'x', 'completed')`,
+    `insert into public.generation_jobs (owner_id, input_text, progress) values ($1, 'x', 100)`,
+    `insert into public.generation_jobs (owner_id, input_text, scene_json) values ($1, 'x', '{}')`,
+    `insert into public.generation_jobs (owner_id, input_text, learning_plan) values ($1, 'x', '{}')`,
+  ]) {
+    await assert.rejects(asUser(userA.id, (tx) => tx.query(sql, [userA.id])), /permission denied/, sql);
+  }
+});
+
+test("generation_jobs: user B cannot insert a job owned by user A", async () => {
+  await assert.rejects(asUser(userB.id, (tx) => insertJob(tx, userA.id)), /row-level security/);
+});
+
+test("generation_jobs: user B cannot read, cancel or delete user A's jobs", async () => {
+  await clearJobs(userA.id);
+  const done = await serverJob(userA.id, "completed");
+  const active = await serverJob(userA.id, "planning");
+  const result = await asUser(userB.id, async (tx) => ({
+    read: (await tx.query(`select 1 from public.generation_jobs where owner_id = $1`, [userA.id])).rows.length,
+    cancel: (await tx.query(`update public.generation_jobs set status = 'cancelling' where id = $1`, [active])).affectedRows,
+    del: (await tx.query(`delete from public.generation_jobs where id = $1`, [done])).affectedRows,
+  }));
+  assert.deepEqual(result, { read: 0, cancel: 0, del: 0 });
+  const { rows } = await db.query(`select status from public.generation_jobs where id = $1`, [active]);
+  assert.equal(rows[0].status, "planning");
+  await clearJobs(userA.id);
+});
+
+test("generation_jobs: owners may only request cancellation, never write results", async () => {
+  await clearJobs(userA.id);
+  const id = await serverJob(userA.id, "planning");
+  const ok = await asUser(userA.id, async (tx) =>
+    (await tx.query(`update public.generation_jobs set status = 'cancelling' where id = $1 returning status`, [id])).rows[0]
+  );
+  assert.equal(ok.status, "cancelling");
+  await assert.rejects(
+    asUser(userA.id, (tx) => tx.query(`update public.generation_jobs set status = 'completed' where id = $1`, [id])),
+    /row-level security/
+  );
+  for (const col of ["progress = 100", "scene_json = '{}'", "safe_error_message = 'x'", "owner_id = owner_id"]) {
+    await assert.rejects(
+      asUser(userA.id, (tx) => tx.query(`update public.generation_jobs set ${col} where id = $1`, [id])),
+      /permission denied/,
+      col
+    );
+  }
+  await clearJobs(userA.id);
+});
+
+test("generation_jobs: owners can delete finished jobs but not active ones", async () => {
+  await clearJobs(userA.id);
+  const done = await serverJob(userA.id, "failed");
+  const active = await serverJob(userA.id, "composing");
+  const result = await asUser(userA.id, async (tx) => ({
+    active: (await tx.query(`delete from public.generation_jobs where id = $1`, [active])).affectedRows,
+    done: (await tx.query(`delete from public.generation_jobs where id = $1`, [done])).affectedRows,
+  }));
+  assert.deepEqual(result, { active: 0, done: 1 });
+  await clearJobs(userA.id);
+});
+
+test("generation_jobs: anon has no access", async () => {
+  await assert.rejects(asAnon((tx) => tx.query(`select * from public.generation_jobs`)), /permission denied/);
+  await assert.rejects(asAnon((tx) => insertJob(tx, userA.id)), /permission denied/);
+});
+
+test("generation_jobs: only one active job per user (database-enforced)", async () => {
+  await clearJobs(userA.id, userB.id);
+  const first = await serverJob(userA.id, "queued");
+  await assert.rejects(asUser(userA.id, (tx) => insertJob(tx, userA.id)), (err) => err.code === "23505");
+  // Other users are unaffected.
+  await asUser(userB.id, (tx) => insertJob(tx, userB.id));
+  // Terminal jobs never block a new one.
+  await db.query(`update public.generation_jobs set status = 'cancelled' where id = $1`, [first]);
+  await serverJob(userA.id, "completed");
+  await serverJob(userA.id, "failed");
+  const created = await asUser(userA.id, async (tx) => (await insertJob(tx, userA.id)).rows[0]);
+  assert.equal(created.status, "queued");
+  await clearJobs(userA.id, userB.id);
+});
+
+test("generation_jobs: check constraints guard prompt length, settings, status, progress and terminal states", async () => {
+  await clearJobs(userA.id);
+  await assert.rejects(asUser(userA.id, (tx) => insertJob(tx, userA.id, "")), /generation_jobs_input_text_length/);
+  await assert.rejects(asUser(userA.id, (tx) => insertJob(tx, userA.id, "x".repeat(8001))), /generation_jobs_input_text_length/);
+  const ok = await asUser(userA.id, async (tx) => (await insertJob(tx, userA.id, "x".repeat(8000))).rows[0]);
+  assert.equal(ok.input_text.length, 8000);
+  await assert.rejects(
+    asUser(userA.id, (tx) =>
+      tx.query(`insert into public.generation_jobs (owner_id, input_text, settings) values ($1, 'x', '[]')`, [userA.id])
+    ),
+    /generation_jobs_settings_is_object/
+  );
+  const id = await serverJob(userA.id, "queued");
+  for (const [sql, re] of [
+    [`update public.generation_jobs set status = 'bogus' where id = $1`, /generation_jobs_status/],
+    [`update public.generation_jobs set progress = 101 where id = $1`, /generation_jobs_progress_range/],
+    [`update public.generation_jobs set progress = -1 where id = $1`, /generation_jobs_progress_range/],
+    [`update public.generation_jobs set status = 'completed' where id = $1`, /generation_jobs_completed_has_result/],
+    [`update public.generation_jobs set status = 'failed' where id = $1`, /generation_jobs_failed_has_error/],
+  ]) {
+    await assert.rejects(db.query(sql, [id]), re, sql);
+  }
+  await clearJobs(userA.id);
+});
+
+test("generation_jobs: deleting the auth user cascades to their jobs", async () => {
+  const id = randomUUID();
+  await db.query(`insert into auth.users (id, email) values ($1, 'jobs@example.test')`, [id]);
+  await serverJob(id, "completed");
+  await db.query(`delete from auth.users where id = $1`, [id]);
+  const { rows } = await db.query(`select 1 from public.generation_jobs where owner_id = $1`, [id]);
+  assert.equal(rows.length, 0);
 });

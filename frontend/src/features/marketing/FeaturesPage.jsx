@@ -5,8 +5,9 @@ import { ButtonLink } from "../../components/Button.jsx";
 const FEATURES = [
   { title: "Accounts", text: "Email and password or Google sign-in, email verification and password recovery.", status: "now" },
   { title: "Profile", text: "Display name, username, bio and a private profile photo.", status: "now" },
-  { title: "Prompt to visual notes", text: "Describe a topic and receive an editable diagram with an explanation.", status: "next" },
-  { title: "Canvas editor", text: "Edit generated diagrams in an Excalidraw-based canvas with autosave.", status: "next" },
+  { title: "Prompt to visual notes", text: "Describe a topic and receive an editable diagram with a section-by-section explanation.", status: "now" },
+  { title: "Canvas editor", text: "Edit generated diagrams in an Excalidraw-based canvas. Edits aren't saved yet.", status: "now" },
+  { title: "Autosave and versions", text: "Your edits are saved automatically, with restorable version history.", status: "next" },
   { title: "Notes library", text: "Folders, tags, search, favourites and version history.", status: "next" },
   { title: "Downloads", text: "Export notes as PNG, SVG or .excalidraw files.", status: "next" },
   { title: "PDF and image inputs", text: "Generate visuals from lecture PDFs, slides and photos of handwritten notes.", status: "later" },

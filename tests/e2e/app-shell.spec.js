@@ -27,7 +27,7 @@ test.describe("Phase 1: public pages", () => {
     }
     // Release policy: unreleased features are labelled, not advertised as available.
     await page.goto("/features");
-    await expect(page.getByText("Available now")).toHaveCount(2);
+    await expect(page.getByText("Available now")).toHaveCount(4);
     expect(errors).toEqual([]);
   });
 
@@ -159,7 +159,7 @@ test.describe("Phase 1: authenticated shell and profile (mocked API)", () => {
     await page.goto("/app");
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(/Ada Student$/);
     await expect(page.getByTestId("shell-user-name")).toHaveText("Ada Student");
-    await expect(page.getByLabel("Create (coming later)")).toBeVisible();
+    await expect(page.getByLabel("My Notes (coming later)")).toBeVisible();
     const meCall = api.calls.find((c) => c.path === "/api/v1/me");
     expect(meCall.auth).toMatch(/^Bearer eyJ/);
     expect(meCall.requestId).toMatch(/^web_[0-9a-f]{32}$/);

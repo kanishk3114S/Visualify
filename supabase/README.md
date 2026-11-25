@@ -6,6 +6,7 @@ Everything Supabase needs for Phase 1 lives here:
 | :--- | :--- |
 | `migrations/0001_profiles_and_rls.sql` | `public.profiles`, `set_updated_at` trigger, `handle_new_user` signup trigger, grants, RLS policies, backfill for existing users |
 | `migrations/0002_avatars_storage_bucket.sql` | Private `avatars` bucket (2 MiB, jpeg/png/webp) and `storage.objects` policies scoped to `{uid}/avatar-{uuid}.webp` |
+| `migrations/0003_generation_jobs.sql` | Phase 2 `generation_jobs`: owner-scoped RLS, one active job per user (partial unique index), clients may only create/read/cancel; results are written server-side |
 | `tests/rls.pglite.test.js` | **Offline** verification of the migrations on real Postgres (PGlite) — no credentials needed |
 | `tests/rls.live.test.js` | **Live** cross-user verification against a real dev/staging project |
 | `tests/supabase-stub.sql` | Minimal emulation of Supabase's `auth`/`storage` schemas used only by the offline test. **Never apply it to a real project.** |
@@ -32,7 +33,7 @@ npx supabase@latest db push
 
 **Option B — Dashboard SQL editor**
 
-Open *SQL Editor* → paste and run `0001_profiles_and_rls.sql`, then `0002_avatars_storage_bucket.sql`.
+Open *SQL Editor* → paste and run `0001_profiles_and_rls.sql`, then `0002_avatars_storage_bucket.sql`, then `0003_generation_jobs.sql` (Phase 2).
 
 **Check it worked** (SQL editor):
 
@@ -41,6 +42,8 @@ select relrowsecurity from pg_class where oid = 'public.profiles'::regclass;    
 select cmd, roles from pg_policies where tablename = 'profiles';                       -- 4 rows, {authenticated}
 select id, public, file_size_limit from storage.buckets where id = 'avatars';          -- public = false
 select tgname from pg_trigger where tgname = 'on_auth_user_created';                   -- 1 row
+select cmd from pg_policies where tablename = 'generation_jobs';                        -- 4 rows (0003)
+select indexname from pg_indexes where indexname = 'generation_jobs_one_active_per_owner'; -- 1 row (0003)
 ```
 
 ## 3. Configure Auth URLs
@@ -87,7 +90,7 @@ Copy-Item backend\.env.example backend\.env.local
 ## 7. Verify
 
 ```powershell
-npm run test:rls:sql    # offline: 26 SQL checks on real Postgres (PGlite)
+npm run test:rls:sql    # offline: 37 SQL checks on real Postgres (PGlite)
 npm run test:rls:live   # live: creates two throwaway users, checks cross-user isolation, deletes them
 ```
 

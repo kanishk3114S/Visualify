@@ -54,6 +54,16 @@ export function createSupabaseGateway(config, { fetchImpl = globalThis.fetch } =
       });
     },
 
+    /**
+     * Service-role client for the server-side generation job runner ONLY.
+     * Bypasses RLS: every query made with it must filter by a verified owner id.
+     * Returns null when the key is not configured.
+     */
+    createAdminClient() {
+      if (!config.supabaseServiceRoleKey) return null;
+      return createClient(config.supabaseUrl, config.supabaseServiceRoleKey, SERVER_CLIENT_OPTIONS);
+    },
+
     /** Lightweight reachability probe of Supabase Auth (cached briefly). */
     async checkHealth() {
       const now = Date.now();

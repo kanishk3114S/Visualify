@@ -28,8 +28,8 @@ function ChecklistItem({ done, children, action }) {
 }
 
 const ROADMAP = [
-  { icon: Sparkles, title: "Prompt to visual notes", text: "Describe a topic and get an editable diagram with an explanation." },
   { icon: FolderOpen, title: "Notes library", text: "Save, organise, search and version your visual notes." },
+  { icon: PenTool, title: "Downloads", text: "Export notes as PNG, SVG or .excalidraw files." },
   { icon: FileText, title: "PDF and image inputs", text: "Turn lecture slides and handwritten notes into visuals." },
 ];
 
@@ -81,19 +81,22 @@ export function DashboardPage() {
           </ul>
         </Card>
 
-        <Card className="flex flex-col p-6 md:col-span-2" aria-labelledby="editor-preview">
-          <PenTool className="h-6 w-6 text-accent-700" aria-hidden="true" />
-          <h2 id="editor-preview" className="mt-3 text-base font-semibold text-stone-900">
-            Try the canvas editor
+        <Card className="flex flex-col p-6 md:col-span-2" aria-labelledby="create-cta">
+          <Sparkles className="h-6 w-6 text-accent-700" aria-hidden="true" />
+          <h2 id="create-cta" className="mt-3 text-base font-semibold text-stone-900">
+            Turn a topic into a visual
           </h2>
           <p className="mt-1 flex-1 text-sm text-stone-600">
-            Explore the Excalidraw-based editor your visual notes will open in. Drawings in this preview aren't saved.
+            Describe a topic and get an editable diagram with a section-by-section explanation.
           </p>
+          <ButtonLink to="/app/create" className="mt-4 self-start">
+            Create visual notes
+          </ButtonLink>
           <Link
             to="/spike/excalidraw"
-            className="mt-4 text-sm font-medium text-accent-700 underline-offset-2 hover:text-accent-800 hover:underline"
+            className="mt-3 text-sm font-medium text-accent-700 underline-offset-2 hover:text-accent-800 hover:underline"
           >
-            Open editor preview →
+            Or try a blank canvas →
           </Link>
         </Card>
       </div>
