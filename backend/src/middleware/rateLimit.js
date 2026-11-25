@@ -26,5 +26,9 @@ export function createRateLimiters() {
     profileMutation: limiter({ windowMs: 15 * 60 * 1000, limit: 30, byUser: true }),
     /** Avatar upload/delete - CPU-heavy image processing. */
     avatarMutation: limiter({ windowMs: 15 * 60 * 1000, limit: 10, byUser: true }),
+    /** Generation create/retry: each one is a paid model call. */
+    generationCreate: limiter({ windowMs: 60 * 60 * 1000, limit: 20, byUser: true }),
+    /** Generation cancel. */
+    generationControl: limiter({ windowMs: 15 * 60 * 1000, limit: 60, byUser: true }),
   };
 }

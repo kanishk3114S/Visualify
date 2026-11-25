@@ -3,6 +3,7 @@ import { loadConfig } from "../../src/config/env.js";
 import { createApp } from "../../src/app.js";
 import { createLogger } from "../../src/utils/logger.js";
 import { createFakeSupabase } from "./fakeSupabase.js";
+import { createTestGenerationStack } from "./fakeGeneration.js";
 
 export const ALLOWED_ORIGIN = "http://localhost:5173";
 
@@ -20,7 +21,7 @@ export const BASE_ENV = Object.freeze({
  * Builds an app wired to the fake Supabase gateway with a capturing logger,
  * so tests can assert on exactly what would be written to production logs.
  */
-export function buildTestApp(envOverrides = {}) {
+export function buildTestApp(envOverrides = {}, { generationEnabled = true, generation: generationOptions = {} } = {}) {
   const config = loadConfig({ ...BASE_ENV, ...envOverrides });
   const fake = createFakeSupabase();
   const logLines = [];
@@ -31,6 +32,7 @@ export function buildTestApp(envOverrides = {}) {
     },
   });
   const logger = createLogger({ ...config, logLevel: "debug" }, sink);
-  const app = createApp({ config, gateway: fake.gateway, logger });
-  return { app, config, ...fake, logLines, logText: () => logLines.join("") };
+  const generation = createTestGenerationStack({ config, logger, enabled: generationEnabled, ...generationOptions });
+  const app = createApp({ config, gateway: fake.gateway, logger, generation });
+  return { app, config, ...fake, generation, logLines, logText: () => logLines.join("") };
 }

@@ -13,7 +13,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:rls:sql": "node --test ../supabase/tests/rls.pglite.test.js",
-    "test:rls:live": "node --test ../supabase/tests/rls.live.test.js"
+    "test:rls:live": "node --test ../supabase/tests/rls.live.test.js",
+    "smoke:generation": "node scripts/smokeGeneration.js",
+    "smoke:live-api": "node scripts/liveApiSmoke.js"
   },
   "devDependencies": {
     "@electric-sql/pglite": "0.5.16",
@@ -22,6 +24,7 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "2.119.0",
+    "@visualify/worker": "0.1.0",
     "cors": "2.8.6",
     "dotenv": "18.0.10",
     "express": "5.3.0",

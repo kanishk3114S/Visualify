@@ -77,3 +77,57 @@ export function validateAvatarFile(file) {
   if (file.size === 0) return "That file is empty.";
   return null;
 }
+
+// ---------------------------------------------------------------------------
+// Generation (Phase 2) - mirrors backend/src/schemas/generation.schema.js
+// ---------------------------------------------------------------------------
+export const PROMPT_MAX_CHARS = 8000;
+
+export const GENERATION_OPTIONS = Object.freeze({
+  audienceLevel: [
+    ["school", "School"],
+    ["undergraduate", "Undergraduate"],
+    ["postgraduate", "Postgraduate"],
+    ["professional", "Professional"],
+  ],
+  detail: [
+    ["brief", "Brief - one focused diagram"],
+    ["standard", "Standard - 1-2 diagrams"],
+    ["detailed", "Detailed - 2-3 diagrams"],
+  ],
+  visualStyle: [
+    ["hand_drawn_clean", "Hand-drawn, clean"],
+    ["minimal", "Minimal labels"],
+  ],
+  preferredOutput: [
+    ["auto", "Let Visualify choose"],
+    ["flowchart", "Flowchart"],
+    ["sequence", "Sequence diagram"],
+    ["mindmap", "Mind map"],
+    ["comparison", "Comparison"],
+    ["timeline", "Timeline"],
+    ["er_diagram", "Entity-relationship diagram"],
+    ["class_diagram", "Class diagram"],
+  ],
+});
+
+const optionValues = (key) => GENERATION_OPTIONS[key].map(([value]) => value);
+
+export const generationRequestSchema = z.object({
+  prompt: z
+    .string()
+    .trim()
+    .min(1, "Enter a topic, question or notes to visualise.")
+    .max(PROMPT_MAX_CHARS, `Use at most ${PROMPT_MAX_CHARS.toLocaleString("en-US")} characters.`),
+  subject: z.string().trim().max(120, "Use at most 120 characters."),
+  audienceLevel: z.enum(optionValues("audienceLevel")),
+  detail: z.enum(optionValues("detail")),
+  visualStyle: z.enum(optionValues("visualStyle")),
+  preferredOutput: z.enum(optionValues("preferredOutput")),
+});
+
+/** Form values -> POST /api/v1/generations body. */
+export function toGenerationBody(values) {
+  const { prompt, ...settings } = values;
+  return { inputType: "prompt", prompt: prompt.trim(), settings: { ...settings, subject: settings.subject.trim() } };
+}

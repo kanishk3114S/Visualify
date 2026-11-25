@@ -66,7 +66,7 @@ export function LandingPage() {
             </ButtonLink>
           </div>
           <p className="text-sm text-stone-500">
-            Accounts and profiles are live now. AI visual generation is coming in the next release.
+            Prompt-to-visual generation is live. Saving notes to a library is coming next.
           </p>
         </div>
         <SampleVisual />

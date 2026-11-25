@@ -9,6 +9,7 @@ import { createApiRouter } from "./routes/index.js";
 import { createLogger, httpSerializers } from "./utils/logger.js";
 import { sendError } from "./utils/response.js";
 import { createSupabaseGateway } from "./config/supabase.js";
+import { createGenerationStack } from "./generation/index.js";
 
 const ALLOWED_METHODS = ["GET", "POST", "PATCH", "DELETE"];
 
@@ -18,8 +19,14 @@ const ALLOWED_METHODS = ["GET", "POST", "PATCH", "DELETE"];
  * @param {object} options.config  Validated config from loadConfig()
  * @param {object} [options.gateway] Supabase gateway (injectable for tests)
  * @param {object} [options.logger]  pino logger (injectable for tests)
+ * @param {object} [options.generation] { service, store, bus } (injectable for tests)
  */
-export function createApp({ config, gateway = createSupabaseGateway(config), logger = createLogger(config) }) {
+export function createApp({
+  config,
+  gateway = createSupabaseGateway(config),
+  logger = createLogger(config),
+  generation = createGenerationStack({ config, gateway, logger }),
+}) {
   const app = express();
   const allowedOrigins = new Set(config.frontendOrigins);
   const limiters = createRateLimiters();
@@ -89,7 +96,8 @@ export function createApp({ config, gateway = createSupabaseGateway(config), log
 
   app.use("/api", limiters.api);
 
-  app.use("/api/v1", createApiRouter({ config, gateway, limiters }));
+  app.use("/api/v1", createApiRouter({ config, gateway, limiters, generation }));
+  app.locals.generation = generation;
 
   app.use(notFoundHandler);
   app.use(errorHandler);

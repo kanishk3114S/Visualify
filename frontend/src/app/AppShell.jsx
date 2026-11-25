@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { NavLink, Outlet, useLocation, useMatches, useNavigate } from "react-router-dom";
 import clsx from "clsx";
 import { FolderOpen, LayoutDashboard, LogOut, Menu, Settings, Sparkles, User, X } from "lucide-react";
 import { Logo } from "../components/Layout.jsx";
@@ -10,13 +10,15 @@ import { useToast } from "../components/Toast.jsx";
 
 const NAV = [
   { to: "/app", label: "Dashboard", icon: LayoutDashboard, end: true },
-  { label: "Create", icon: Sparkles, soon: true },
+  { to: "/app/create", label: "Create", icon: Sparkles },
   { label: "My Notes", icon: FolderOpen, soon: true },
   { to: "/app/profile", label: "Profile", icon: User },
   { to: "/app/settings", label: "Settings", icon: Settings },
 ];
 
-function NavItems({ onNavigate }) {
+/** rail: on large screens show icons only (labels stay available to assistive tech and as tooltips). */
+function NavItems({ onNavigate, rail = false }) {
+  const label = rail ? "lg:sr-only" : undefined;
   return (
     <ul className="space-y-1">
       {NAV.map((item) => {
@@ -26,12 +28,13 @@ function NavItems({ onNavigate }) {
           return (
             <li key={item.label}>
               <span
-                className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-stone-500"
+                className={clsx("flex items-center gap-3 rounded-md px-3 py-2 text-sm text-stone-500", rail && "lg:justify-center lg:px-0")}
                 aria-label={`${item.label} (coming later)`}
+                title={rail ? `${item.label} (coming later)` : undefined}
               >
                 <Icon className="h-4 w-4" aria-hidden="true" />
-                <span className="flex-1">{item.label}</span>
-                <span className="rounded-full bg-stone-100 px-2 py-0.5 text-[11px] font-medium text-stone-600" aria-hidden="true">
+                <span className={clsx("flex-1", label)}>{item.label}</span>
+                <span className={clsx("rounded-full bg-stone-100 px-2 py-0.5 text-[11px] font-medium text-stone-600", rail && "lg:hidden")} aria-hidden="true">
                   Soon
                 </span>
               </span>
@@ -44,15 +47,17 @@ function NavItems({ onNavigate }) {
               to={item.to}
               end={item.end}
               onClick={onNavigate}
+              title={rail ? item.label : undefined}
               className={({ isActive }) =>
                 clsx(
                   "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                  rail && "lg:justify-center lg:px-0",
                   isActive ? "bg-accent-50 text-accent-900" : "text-stone-700 hover:bg-stone-100 hover:text-stone-900"
                 )
               }
             >
               <Icon className="h-4 w-4" aria-hidden="true" />
-              {item.label}
+              <span className={label}>{item.label}</span>
             </NavLink>
           </li>
         );
@@ -61,7 +66,7 @@ function NavItems({ onNavigate }) {
   );
 }
 
-function UserFooter() {
+function UserFooter({ rail = false }) {
   const { user, signOut } = useAuth();
   const { data: profile } = useProfile();
   const toast = useToast();
@@ -82,9 +87,9 @@ function UserFooter() {
 
   const name = profile?.display_name || user?.email || "";
   return (
-    <div className="flex items-center gap-3 border-t border-stone-200 p-3">
+    <div className={clsx("flex items-center gap-3 border-t border-stone-200 p-3", rail && "lg:flex-col lg:gap-2 lg:px-2")}>
       <Avatar src={profile?.avatar_url} name={profile?.display_name} fallbackText={user?.email} size="md" />
-      <div className="min-w-0 flex-1">
+      <div className={clsx("min-w-0 flex-1", rail && "lg:hidden")}>
         <p className="truncate text-sm font-medium text-stone-900" data-testid="shell-user-name">
           {name}
         </p>
@@ -108,6 +113,7 @@ function UserFooter() {
 export function AppShell() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
+  const fullWidth = useMatches().some((m) => m.handle?.fullWidth);
 
   useEffect(() => setMobileOpen(false), [location.pathname]);
   useEffect(() => {
@@ -150,23 +156,29 @@ export function AppShell() {
         aria-label="Main"
         className={clsx(
           "fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-stone-200 bg-white transition-transform lg:sticky lg:top-0 lg:h-dvh lg:translate-x-0",
+          // The workspace needs the width: collapse to an icon rail on large screens.
+          fullWidth && "lg:w-16",
           // Closed mobile drawer is also `invisible`, so it can't take keyboard focus off-screen.
           mobileOpen ? "visible translate-x-0" : "invisible -translate-x-full lg:visible"
         )}
       >
-        <div className="flex h-14 items-center px-4 lg:h-16">
-          <Logo to="/app" />
+        <div className={clsx("flex h-14 items-center px-4 lg:h-16", fullWidth && "lg:justify-center lg:px-0")}>
+          <Logo to="/app" className={fullWidth ? "lg:[&>span]:sr-only" : undefined} />
         </div>
-        <div className="flex-1 overflow-y-auto px-3 py-2">
-          <NavItems onNavigate={() => setMobileOpen(false)} />
+        <div className={clsx("flex-1 overflow-y-auto px-3 py-2", fullWidth && "lg:px-2")}>
+          <NavItems rail={fullWidth} onNavigate={() => setMobileOpen(false)} />
         </div>
-        <UserFooter />
+        <UserFooter rail={fullWidth} />
       </nav>
 
-      <main id="main-content" tabIndex={-1} className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-10 lg:py-10">
-        <div className="mx-auto max-w-4xl">
+      <main id="main-content" tabIndex={-1} className={clsx("min-w-0 flex-1", !fullWidth && "px-4 py-6 sm:px-6 lg:px-10 lg:py-10")}>
+        {fullWidth ? (
           <Outlet />
-        </div>
+        ) : (
+          <div className="mx-auto max-w-4xl">
+            <Outlet />
+          </div>
+        )}
       </main>
     </div>
   );

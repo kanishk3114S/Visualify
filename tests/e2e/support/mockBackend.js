@@ -69,8 +69,8 @@ const fail = (code, message, details = null) => ({ success: false, data: null, e
  * Intercepts /api/v1/* with an in-memory profile. Returns the call log and
  * a handle to the current profile so tests can assert on what was sent.
  */
-export async function mockApi(page, { profile = makeProfile(), takenUsernames = [], failMe = false } = {}) {
-  const state = { profile: structuredClone(profile), calls: [] };
+export async function mockApi(page, { profile = makeProfile(), takenUsernames = [], failMe = false, generations = null } = {}) {
+  const state = { profile: structuredClone(profile), calls: [], generations };
 
   await page.route(`${API_BASE}/api/v1/**`, async (route) => {
     const req = route.request();
@@ -119,6 +119,9 @@ export async function mockApi(page, { profile = makeProfile(), takenUsernames = 
     if (url.pathname === "/api/v1/me/avatar" && req.method() === "DELETE") {
       state.profile = { ...state.profile, avatar_url: null, avatar_url_expires_at: null };
       return json(200, ok({ profile: state.profile }));
+    }
+    if (url.pathname.startsWith("/api/v1/generations") && state.generations) {
+      return state.generations.handle({ route, req, url, json, cors, ok, fail, calls: state.calls });
     }
     return json(404, fail("NOT_FOUND", "The requested resource was not found."));
   });
