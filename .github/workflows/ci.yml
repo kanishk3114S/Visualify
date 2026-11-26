@@ -32,10 +32,17 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Run worker tests (includes @excalidraw/cli renders)
-        env:
-          EXCALIDRAW_BROWSER_PATH: /usr/bin/google-chrome
         run: |
-          CHROME_BIN=$(command -v chromium || command -v chromium-browser || command -v google-chrome || find ~/.cache/ms-playwright -name chrome -type f | head -n 1)
+          CHROME_BIN=$(find "${PLAYWRIGHT_BROWSERS_PATH:-$HOME/.cache/ms-playwright}" -name "chrome" -type f ! -path "*headless*" 2>/dev/null | head -n 1 || true)
+          if [ -z "$CHROME_BIN" ]; then
+            CHROME_BIN=$(command -v google-chrome || command -v google-chrome-stable || true)
+          fi
+          if [ -z "$CHROME_BIN" ] || [ ! -x "$CHROME_BIN" ]; then
+            echo "ERROR: Non-snap Chrome/Chromium binary not found for worker CLI tests!"
+            exit 1
+          fi
+          echo "Using EXCALIDRAW_BROWSER_PATH=$CHROME_BIN"
+          "$CHROME_BIN" --version || true
           EXCALIDRAW_BROWSER_PATH="$CHROME_BIN" npm run test:worker
 
       - name: Run Express API tests
@@ -66,7 +73,9 @@ jobs:
           fi
 
       - name: Run Playwright E2E + Axe WCAG 2 AA + Motion & Tablet checks
-        run: npm run test:e2e
+        run: |
+          mkdir -p renders
+          npx playwright test --reporter=list
 
   docker:
     needs: verify
