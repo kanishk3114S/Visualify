@@ -14,41 +14,85 @@ Describe a concept, and Visualify plans the right diagram, draws it as an **edit
   <img alt="Vite 8" src="https://img.shields.io/badge/Vite-8-646CFF?logo=vite&logoColor=white" />
   <img alt="Express 5" src="https://img.shields.io/badge/Express-5-000000?logo=express&logoColor=white" />
   <img alt="Supabase" src="https://img.shields.io/badge/Supabase-Auth%20%7C%20Postgres%20%7C%20Storage-3FCF8E?logo=supabase&logoColor=white" />
-  <img alt="Gemini" src="https://img.shields.io/badge/Gemini-3.5%20Flash-8E75B2?logo=googlegemini&logoColor=white" />
-  <img alt="Excalidraw" src="https://img.shields.io/badge/Excalidraw-0.18-6965DB" />
+  <img alt="Gemini 3.5 Flash-Lite" src="https://img.shields.io/badge/Gemini-3.5%20Flash--Lite-8E75B2?logo=googlegemini&logoColor=white" />
+  <img alt="Excalidraw 0.18" src="https://img.shields.io/badge/Excalidraw-0.18-6965DB" />
 </p>
 <p>
-  <img alt="Phase 6.5 offline & E2E verified" src="https://img.shields.io/badge/status-Phase%206.5%20verified%20(awaiting%200010%20live)-0f766e" />
-  <img alt="JavaScript only" src="https://img.shields.io/badge/language-JavaScript%20(ESM)-F7DF1E?logo=javascript&logoColor=black" />
+  <img alt="Phase 6.5 verified" src="https://img.shields.io/badge/status-Phase%206.5%20ready%20(awaiting%200010%20live)-0f766e" />
+  <img alt="JavaScript ESM" src="https://img.shields.io/badge/language-JavaScript%20(ESM)-F7DF1E?logo=javascript&logoColor=black" />
   <img alt="RLS verified" src="https://img.shields.io/badge/RLS-68%20SQL%20%7C%2021%20live-0f766e" />
+  <img alt="Playwright & Axe" src="https://img.shields.io/badge/E2E%20%2B%20WCAG%20AA-79%20passed-0f766e" />
 </p>
 
-[**Quick start**](#-quick-start) · [**How it works**](#-how-it-works) · [**API**](#-api-reference) · [**Testing**](#-testing) · [**Roadmap**](#-roadmap) · [**Docs**](#-documentation)
+[**Product tour**](#-product-tour) · [**Diagrams**](#-rendered-diagrams) · [**How it works**](#-how-it-works) · [**Quick start**](#-quick-start) · [**API**](#-api-reference) · [**Testing**](#-testing) · [**Roadmap**](#-roadmap)
 
 </div>
 
 ---
 
+## 🖼️ Product Tour
+
 <table>
   <tr>
-    <td width="50%"><img src="docs/assets/create.png" alt="Create page with prompt, examples and generation settings" /></td>
-    <td width="50%"><img src="docs/assets/progress.png" alt="Live generation progress with stages and cancel" /></td>
+    <td colspan="2"><img src="docs/assets/workspace-dark.png" alt="Visualify Dark Mode Excalidraw Workspace with Outline, Frame Controls, Focus, Section Regeneration, and Study Assistant" /></td>
   </tr>
   <tr>
-    <td align="center"><b>1. Describe a topic</b><br/><sub>Prompt, examples and settings</sub></td>
-    <td align="center"><b>2. Watch it build</b><br/><sub>Live progress over SSE, cancellable</sub></td>
+    <td colspan="2" align="center"><b>Interactive Excalidraw Workspace (Dark Mode)</b><br/><sub>Section outline · multi-frame canvas · Focus & non-destructive section regeneration · Study Assistant</sub></td>
   </tr>
   <tr>
-    <td colspan="2"><img src="docs/assets/workspace.png" alt="Visual workspace: outline, editable Excalidraw canvas and explanation" /></td>
+    <td width="50%"><img src="docs/assets/landing.png" alt="Visualify landing page with interactive multi-diagram sequence/flowchart/mindmap/comparison switcher" /></td>
+    <td width="50%"><img src="docs/assets/create.png" alt="Create page supporting Topic prompts, PDF documents with page selection, and handwritten note images" /></td>
   </tr>
   <tr>
-    <td colspan="2" align="center"><b>3. Learn and edit</b><br/><sub>Outline · editable canvas · section-by-section explanation</sub></td>
+    <td align="center"><b>1. Interactive Landing Showcase</b><br/><sub>Live diagram preview & theme switcher</sub></td>
+    <td align="center"><b>2. Prompts, PDFs & Note Photos</b><br/><sub>Up to 20 MB · PDF page ranges · EXIF-safe images</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/assets/study-quiz.png" alt="Study Companion Quick Quiz view with persistent score, difficulty levels, Flashcards, Revision Sheet, and Ask This Note tabs" /></td>
+    <td width="50%"><img src="docs/assets/present-dark.png" alt="Full-bleed multi-frame Presentation Mode with slide filmstrip and speaker notes" /></td>
+  </tr>
+  <tr>
+    <td align="center"><b>3. Study Companion Suite</b><br/><sub>Quick Quiz · Flashcards · Revision Sheet · Ask Note</sub></td>
+    <td align="center"><b>4. Multi-Frame Presentation Mode</b><br/><sub>Keyboard shortcuts · slide filmstrip · speaker notes</sub></td>
+  </tr>
+  <tr>
+    <td width="65%"><img src="docs/assets/dashboard-dark.png" alt="Authenticated Dashboard showing monthly quota meter, recent notes, and library summary in Dark Mode" /></td>
+    <td width="35%" align="center"><img src="docs/assets/mobile-study-dark.png" alt="Mobile Dark Mode view of Study Companion Quick Quiz with accessible touch targets" width="240" /></td>
+  </tr>
+  <tr>
+    <td align="center"><b>5. Dashboard & Fail-Closed Quota Meter</b><br/><sub>Real-time monthly credits with auto-refunds on 5xx</sub></td>
+    <td align="center"><b>6. Mobile-First Responsive UI</b><br/><sub>Zero horizontal overflow · 44px touch targets</sub></td>
+  </tr>
+</table>
+
+---
+
+## 🎨 Rendered Diagrams
+
+Every diagram below is generated server-side into **editable Excalidraw scenes** (`@excalidraw/cli` + Chromium for Mermaid types; deterministic container-bound geometry for Mind Maps & Comparisons) with bound text, connectors, and PNG/SVG/JSON export:
+
+<table>
+  <tr>
+    <td width="50%" align="center"><img src="docs/assets/diagram-sequence.png" alt="TCP Three-Way Handshake sequence diagram rendered via Visualify Excalidraw pipeline" /></td>
+    <td width="50%" align="center"><img src="docs/assets/diagram-comparison.png" alt="SQL vs NoSQL side-by-side comparison diagram with Key Takeaway footer" /></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Sequence Diagram</b> (<code>sequenceDiagram</code> → Excalidraw)</td>
+    <td align="center"><b>Comparison Matrix</b> (Deterministic Grid + Key Takeaway)</td>
+  </tr>
+  <tr>
+    <td width="65%" align="center"><img src="docs/assets/diagram-mindmap.png" alt="Operating Systems radial mind map with teal, indigo, and amber color-coded branches" /></td>
+    <td width="35%" align="center"><img src="docs/assets/diagram-er.png" alt="User and Note Entity-Relationship diagram with crow's-foot cardinality" width="220" /></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Mind Map</b> (Central Hero + Color-Coded Branches)</td>
+    <td align="center"><b>ER Diagram</b> (Typed Attributes + Cardinality)</td>
   </tr>
 </table>
 
 > [!NOTE]
-> **Status: Phase 6.5 (Launch Close-Out, Single-Image Split Roles, AI Quality Eval Set, Quota Refunds & PRD §14 Telemetry) is implemented and verified**, with offline suites (`95` worker, `242` API, `68` PGlite SQL, `75` frontend unit), `79` Playwright E2E + Axe WCAG 2 AA tests, production bundle build (`0` `.map` files), lint (`126` JS files), live `eval:quality` (`30/30` on `gemini-3.5-flash-lite`), and `dockerSmoke.js` passing.
-> Live RLS checks pass `21/22` (`0009` verified live) with `1` skipped awaiting owner-applied `supabase/migrations/0010_launch_closeout.sql` (`npm run test:rls:live`). Live staging deploy and container image build in CI run on GitHub Actions / Render / Vercel.
+> **Status: Phase 6.5 (Launch Close-Out, Single-Image Split Roles, 30-Fixture AI Quality Eval, Quota Refunds & Zero-PII Launch Telemetry) is implemented and verified**, with offline suites (`95` worker, `242` API, `68` PGlite SQL, `75` frontend unit), `79` Playwright E2E + Axe WCAG 2 AA tests, production bundle build (`0` `.map` files), lint (`126` JS files), live `eval:quality` (`30/30` on `gemini-3.5-flash-lite`), and `dockerSmoke.js` passing.
+> Live RLS checks pass `21/22` (`0009` verified live) with `1` skipped awaiting owner-applied [`supabase/migrations/0010_launch_closeout.sql`](supabase/migrations/0010_launch_closeout.sql) (`npm run test:rls:live`). Phase 7 expansion remains intentionally gated per [`PRD.MD` §17](PRD.MD) until live telemetry validates demand.
 
 <details>
 <summary><b>📑 Table of contents</b></summary>
@@ -98,20 +142,20 @@ Visualify **separates thinking from drawing**: the model decides *what to teach 
 
 ```mermaid
 flowchart LR
-    U(["👤 Learner"]) -->|prompt + settings| FE["React SPA<br/>Vite · Tailwind · TanStack Query"]
-    FE -->|"REST + SSE<br/>Bearer JWT"| API["Express API<br/>helmet · CORS · rate limits · Zod"]
+    U(["👤 Learner"]) -->|prompt / PDF / image| FE["React SPA<br/>Vite · Tailwind · TanStack Query"]
+    FE -->|"REST + SSE<br/>Bearer JWT"| API["Express API (PROCESS_ROLE=api)<br/>helmet · CORS · rate limits · Zod"]
     FE -->|Auth SDK| AUTH[("Supabase Auth")]
     API -->|verify JWT| AUTH
-    API -->|enqueue| Q["In-process job queue<br/>AbortController per job"]
-    Q --> P["Generation pipeline"]
-    P -->|"untrusted-input<br/>delimited prompt"| G["Gemini 3.5 Flash<br/>structured JSON"]
-    P --> R{"Visual type<br/>router"}
-    R -->|"flowchart · sequence · timeline<br/>er_diagram · class_diagram"| M["Mermaid → Excalidraw CLI<br/>headless Chrome"]
+    API -->|"enqueue + pub/sub"| Q["BullMQ + Redis<br/>or InProcessQueue (dev)"]
+    Q --> W["Worker Role (PROCESS_ROLE=worker)<br/>Pipeline + RenderSemaphore"]
+    W -->|"untrusted-input<br/>delimited prompt"| G["Gemini 3.5 Flash-Lite<br/>(+ fallback chain)"]
+    W --> R{"Visual type<br/>router"}
+    R -->|"flowchart · sequence · timeline<br/>er_diagram · class_diagram"| M["Mermaid → Excalidraw CLI<br/>headless Chromium"]
     R -->|"mindmap · comparison"| D["Direct scene adapter"]
-    M --> C["Scene composer<br/>+ validation"]
+    M --> C["Multi-Frame Composer<br/>+ validation"]
     D --> C
-    C -->|"service-role write<br/>owner-filtered"| DB[("Supabase Postgres<br/>generation_jobs · RLS")]
-    P -. events .-> API
+    C -->|"service-role write<br/>usage & product_events"| DB[("Supabase Postgres<br/>RLS · Storage")]
+    W -. Redis SSE .-> API
     API -. SSE .-> FE
 ```
 
