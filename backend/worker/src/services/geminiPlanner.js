@@ -7,7 +7,52 @@ import {
 } from "../schemas/learningPlan.js";
 
 /** Bump whenever SYSTEM_INSTRUCTION or the request template changes (PRD 9.6). */
-export const PROMPT_VERSION = "planner-2026-11-26.2";
+export const PROMPT_VERSION = "planner-2026-11-26.3";
+export const DEFAULT_GEMINI_MODEL = "gemini-3.5-flash-lite";
+export const DEFAULT_FALLBACK_MODEL = "gemini-3.5-flash-lite";
+export const SECONDARY_FALLBACK_MODEL = "gemini-3.1-flash-lite";
+
+const clientCache = new Map();
+
+function getCachedClient(apiKey) {
+  let client = clientCache.get(apiKey);
+  if (!client) {
+    client = new GoogleGenAI({ apiKey });
+    clientCache.set(apiKey, client);
+  }
+  return client;
+}
+
+/** Resolves fast low-thinking configuration supported by the target Gemini model series. */
+export function resolveThinkingConfig(modelName, thinkingLevel = "LOW") {
+  const m = String(modelName || "").trim();
+  if (/^gemini-3/i.test(m)) {
+    return { thinkingLevel };
+  }
+  if (/^gemini-2\.5-flash/i.test(m)) {
+    return { thinkingBudget: 0 };
+  }
+  return undefined;
+}
+
+function buildModelChain(primaryModel, fallbackModels) {
+  const seen = new Set();
+  const chain = [];
+  const push = (m) => {
+    const clean = typeof m === "string" ? m.trim() : "";
+    if (clean && !seen.has(clean)) {
+      seen.add(clean);
+      chain.push(clean);
+    }
+  };
+  push(primaryModel);
+  if (Array.isArray(fallbackModels)) {
+    for (const m of fallbackModels) push(m);
+  } else {
+    push(primaryModel === DEFAULT_FALLBACK_MODEL ? SECONDARY_FALLBACK_MODEL : DEFAULT_FALLBACK_MODEL);
+  }
+  return chain;
+}
 
 const UNTRUSTED_OPEN = "<untrusted_user_input>";
 const UNTRUSTED_CLOSE = "</untrusted_user_input>";
@@ -185,32 +230,41 @@ function classifyProviderError(err) {
 async function callModelWithTimeout({
   client,
   model,
+  fallbackModels,
+  thinkingLevel = "LOW",
   systemInstruction = SYSTEM_INSTRUCTION,
   contents,
   jsonSchema,
   timeoutMs,
-  maxTransientRetries = 2,
-  retryBaseDelayMs = 800,
+  maxTransientRetries = 1,
+  retryBaseDelayMs = 250,
   signal,
 }) {
+  const models = buildModelChain(model, fallbackModels);
   let attempt = 0;
 
   while (true) {
     if (signal?.aborted) throw cancelledError(signal.reason);
+    const activeModel = models[Math.min(attempt, models.length - 1)];
+    const hasRemainingFallback = attempt < maxTransientRetries && models.length > attempt + 1;
+    // Fail over quickly if a primary model hangs instead of burning the entire job timeout.
+    const attemptTimeoutMs = hasRemainingFallback ? Math.min(timeoutMs, 20_000) : timeoutMs;
+    const thinkingConfig = resolveThinkingConfig(activeModel, thinkingLevel);
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    const timer = setTimeout(() => controller.abort(), attemptTimeoutMs);
     const onExternalAbort = () => controller.abort();
     signal?.addEventListener("abort", onExternalAbort, { once: true });
 
     try {
       const response = await client.models.generateContent({
-        model,
+        model: activeModel,
         contents,
         config: {
           systemInstruction,
           responseMimeType: "application/json",
           responseJsonSchema: jsonSchema,
           temperature: 0.2,
+          ...(thinkingConfig ? { thinkingConfig } : {}),
           abortSignal: controller.signal,
         },
       });
@@ -235,7 +289,7 @@ async function callModelWithTimeout({
         });
       }
 
-      return { rawText, usageMetadata: response?.usageMetadata || null };
+      return { rawText, model: activeModel, usageMetadata: response?.usageMetadata || null };
     } catch (err) {
       if (signal?.aborted) throw cancelledError(err);
       const classified =
@@ -243,7 +297,10 @@ async function callModelWithTimeout({
 
       if (classified.retryable && attempt < maxTransientRetries) {
         attempt += 1;
-        const delayMs = retryBaseDelayMs * 2 ** (attempt - 1);
+        const nextModel = models[Math.min(attempt, models.length - 1)];
+        const delayMs = nextModel !== activeModel
+          ? Math.min(retryBaseDelayMs, 100)
+          : retryBaseDelayMs * 2 ** (attempt - 1);
         await new Promise((resolve) => setTimeout(resolve, delayMs));
         continue;
       }
@@ -293,27 +350,31 @@ export async function generateStructuredJson({
   schema,
   jsonSchema,
   repairLabel = "JSON payload",
+  thinkingLevel = "LOW",
+  fallbackModels,
   signal,
   client = null,
   model = null,
   timeoutMs = 30_000,
-  maxTransientRetries = 2,
-  retryBaseDelayMs = 800,
+  maxTransientRetries = 1,
+  retryBaseDelayMs = 250,
 }) {
   let resolvedClient = client;
   let resolvedModel = model;
   if (!resolvedClient) {
     const cfg = getGeminiConfig();
-    resolvedClient = new GoogleGenAI({ apiKey: cfg.apiKey });
+    resolvedClient = getCachedClient(cfg.apiKey);
     resolvedModel = resolvedModel || cfg.model;
   } else {
-    resolvedModel = resolvedModel || process.env.GEMINI_MODEL || "gemini-3.5-flash";
+    resolvedModel = resolvedModel || process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL;
   }
 
   const startedAt = Date.now();
   const firstAttempt = await callModelWithTimeout({
     client: resolvedClient,
     model: resolvedModel,
+    fallbackModels,
+    thinkingLevel,
     systemInstruction,
     contents,
     jsonSchema,
@@ -327,7 +388,7 @@ export async function generateStructuredJson({
   if (firstValidation.ok) {
     return {
       data: firstValidation.data,
-      model: resolvedModel,
+      model: firstAttempt.model ?? resolvedModel,
       repaired: false,
       latencyMs: Date.now() - startedAt,
       usageMetadata: firstAttempt.usageMetadata,
@@ -345,7 +406,9 @@ Fix ONLY the validation errors above and return a complete valid ${repairLabel} 
 
   const repairAttempt = await callModelWithTimeout({
     client: resolvedClient,
-    model: resolvedModel,
+    model: firstAttempt.model ?? resolvedModel,
+    fallbackModels,
+    thinkingLevel,
     systemInstruction,
     contents: repairContents,
     jsonSchema,
@@ -359,7 +422,7 @@ Fix ONLY the validation errors above and return a complete valid ${repairLabel} 
   if (repairValidation.ok) {
     return {
       data: repairValidation.data,
-      model: resolvedModel,
+      model: repairAttempt.model ?? firstAttempt.model ?? resolvedModel,
       repaired: true,
       latencyMs: Date.now() - startedAt,
       usageMetadata: repairAttempt.usageMetadata,
@@ -385,12 +448,14 @@ export async function generateLearningPlan({
   extractedSource = null,
   preferredVisualTypes = SUPPORTED_VISUAL_TYPES,
   settings = {},
+  thinkingLevel = "LOW",
+  fallbackModels,
   signal,
   client = null,
   model = null,
   timeoutMs = 30_000,
-  maxTransientRetries = 2,
-  retryBaseDelayMs = 800,
+  maxTransientRetries = 1,
+  retryBaseDelayMs = 250,
 } = {}) {
   const cleanPrompt = typeof prompt === "string" ? prompt.trim() : "";
   if (inputType === "prompt" && !cleanPrompt && !extractedSource) {
@@ -413,6 +478,8 @@ export async function generateLearningPlan({
     schema: LearningPlanSchema,
     jsonSchema: getLearningPlanGeminiJsonSchema(),
     repairLabel: "learning plan",
+    thinkingLevel,
+    fallbackModels,
     signal,
     client,
     model,

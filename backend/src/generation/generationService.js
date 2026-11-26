@@ -40,7 +40,7 @@ export function toJobDto(row) {
  * pipeline execution with persisted stage transitions, SSE events,
  * cancellation, retry and crash recovery.
  */
-export function createGenerationService({ config, store, queue, bus, pipelineDeps, logger }) {
+export function createGenerationService({ config, store, queue, bus, pipelineDeps, usageService = null, logger }) {
   const log = logger?.child ? logger.child({ component: "generation" }) : logger;
 
   function publish(jobId, type, data) {
@@ -181,6 +181,11 @@ export function createGenerationService({ config, store, queue, bus, pipelineDep
       attemptCount = 1,
     }) {
       await validateSourceForJob({ db, ownerId, inputType, sourceFileId, pageRange });
+      await usageService?.consumeQuota({
+        userId: ownerId,
+        eventType: retryOf ? "generation_retry" : "generation_create",
+        metadata: { inputType, ...(retryOf ? { retryOf } : {}) },
+      });
       const input = {
         ownerId,
         inputType,
@@ -206,7 +211,7 @@ export function createGenerationService({ config, store, queue, bus, pipelineDep
         job = await store.insertJob(input);
       }
       queue.enqueue(job.id, (signal) => execute(job, signal));
-      log?.info({ jobId: job.id, userId: ownerId, inputType, stage: "queued" }, "generation queued");
+      log?.info({ jobId: job.id, userId: ownerId, inputType, attemptCount, stage: "queued" }, "generation queued");
       return job;
     },
 
@@ -217,7 +222,7 @@ export function createGenerationService({ config, store, queue, bus, pipelineDep
       if (isTerminal(job.status)) {
         throw new AppError(409, "JOB_ALREADY_FINISHED", "This generation has already finished and can't be cancelled.");
       }
-      const outcome = queue.cancel(jobId);
+      const outcome = await queue.cancel(jobId);
       if (outcome === "aborted") {
         const row = await store.updateJob(jobId, { status: "cancelling", stage: "cancelling" }, { expectStatus: RUNNING_STATUSES });
         if (row) {
@@ -264,6 +269,6 @@ export function createGenerationService({ config, store, queue, bus, pipelineDep
     },
 
     onIdle: () => queue.onIdle(),
-    shutdown: () => queue.abortAll(),
+    shutdown: () => (queue.close ? queue.close() : queue.abortAll()),
   };
 }

@@ -68,7 +68,7 @@ export async function runGenerationPipeline({ job, signal, onStage, onProgress, 
   const ticker = setInterval(() => {
     progress = Math.min(PLANNING_PROGRESS_CEILING, progress + Math.max(1, Math.round((PLANNING_PROGRESS_CEILING - progress) / 6)));
     onProgress(progress);
-  }, deps.tickMs ?? 2000);
+  }, deps.tickMs ?? 750);
 
   let planned;
   try {
@@ -92,28 +92,64 @@ export async function runGenerationPipeline({ job, signal, onStage, onProgress, 
   if (!parsed.success) throw new PipelineError("SCHEMA_VALIDATION_FAILED", "plan failed validation");
   const plan = parsed.data;
 
-  // 4. Composing: each section independently; partial success is allowed.
+  // 4. Composing: compile sections concurrently (bounded) while preserving deterministic order.
   await onStage("composing", STAGE_PROGRESS.composing);
+  const warnings = [...(extractedSource?.warnings ?? []), ...plan.warnings];
+  const step = Math.floor((STAGE_PROGRESS.persisting - STAGE_PROGRESS.composing) / plan.sections.length);
+  const compiledEntries = new Array(plan.sections.length);
+  const sectionConcurrency = Math.min(3, plan.sections.length);
+  let nextIndex = 0;
+  let completedCount = 0;
+
+  async function compileWorker() {
+    while (true) {
+      const index = nextIndex;
+      nextIndex += 1;
+      if (index >= plan.sections.length) return;
+      const section = plan.sections[index];
+      throwIfAborted(signal);
+      try {
+        const compiled = await deps.compileSection(section.diagramSpec, { signal, visualStyle });
+        const ownTitle = typeof section.diagramSpec.title === "string" ? section.diagramSpec.title.trim().toLowerCase() : null;
+        const title = ownTitle && ownTitle === section.title.trim().toLowerCase() ? null : section.title;
+        compiledEntries[index] = {
+          part: {
+            sectionId: section.id,
+            title,
+            frameName: `${index + 1}. ${section.title}`,
+            visualType: section.visualType,
+            scene: compiled.scene,
+          },
+          strategy: compiled.strategy,
+          mermaidBlock: compiled.mermaidSource ? `%% section: ${section.id}\n${compiled.mermaidSource}` : null,
+        };
+      } catch (err) {
+        if (signal?.aborted || err?.code === "CLI_CANCELLED") throw cancelled(signal);
+        compiledEntries[index] = {
+          warning: `The diagram for "${section.title}" couldn't be drawn; its explanation is still included.`,
+        };
+      }
+      completedCount += 1;
+      onProgress(STAGE_PROGRESS.composing + step * completedCount);
+    }
+  }
+
+  await Promise.all(Array.from({ length: sectionConcurrency }, () => compileWorker()));
+  throwIfAborted(signal);
+
   const parts = [];
   const mermaidBlocks = [];
-  const warnings = [...(extractedSource?.warnings ?? []), ...plan.warnings];
   const strategies = {};
-  const step = Math.floor((STAGE_PROGRESS.persisting - STAGE_PROGRESS.composing) / plan.sections.length);
-
-  for (const [index, section] of plan.sections.entries()) {
-    throwIfAborted(signal);
-    try {
-      const compiled = await deps.compileSection(section.diagramSpec, { signal, visualStyle });
-      const ownTitle = typeof section.diagramSpec.title === "string" ? section.diagramSpec.title.trim().toLowerCase() : null;
-      const title = ownTitle && ownTitle === section.title.trim().toLowerCase() ? null : section.title;
-      parts.push({ sectionId: section.id, title, frameName: `${index + 1}. ${section.title}`, visualType: section.visualType, scene: compiled.scene });
-      strategies[section.id] = compiled.strategy;
-      if (compiled.mermaidSource) mermaidBlocks.push(`%% section: ${section.id}\n${compiled.mermaidSource}`);
-    } catch (err) {
-      if (signal?.aborted || err?.code === "CLI_CANCELLED") throw cancelled(signal);
-      warnings.push(`The diagram for "${section.title}" couldn't be drawn; its explanation is still included.`);
+  for (let i = 0; i < plan.sections.length; i++) {
+    const entry = compiledEntries[i];
+    if (!entry) continue;
+    if (entry.warning) {
+      warnings.push(entry.warning);
+    } else if (entry.part) {
+      parts.push(entry.part);
+      strategies[plan.sections[i].id] = entry.strategy;
+      if (entry.mermaidBlock) mermaidBlocks.push(entry.mermaidBlock);
     }
-    onProgress(STAGE_PROGRESS.composing + step * (index + 1));
   }
   if (parts.length === 0) throw new PipelineError("COMPOSE_FAILED", "no section could be composed");
 

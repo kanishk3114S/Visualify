@@ -16,6 +16,7 @@ import {
   RefreshCw,
   RotateCcw,
   Sparkles,
+  X,
 } from "lucide-react";
 import clsx from "clsx";
 import { Badge } from "../../components/Layout.jsx";
@@ -371,6 +372,7 @@ export function WorkspaceShell({
 }) {
   const [tab, setTab] = useState("canvas");
   const [rightTab, setRightTab] = useState("explanation");
+  const [tabletDrawer, setTabletDrawer] = useState(null); // null | "outline" | "explanation" (768..1199px)
   const [focus, setFocus] = useState({ id: null, nonce: 0 });
   const [fitNonce, setFitNonce] = useState(0);
   const [resetNonce, setResetNonce] = useState(0);
@@ -381,8 +383,18 @@ export function WorkspaceShell({
   const types = [...new Set((plan?.sections ?? []).map((s) => s.visualType))];
   const sourceInfo = buildSourceInfo({ sourceType, sourceFile, pageRange });
 
+  useEffect(() => {
+    if (!tabletDrawer) return undefined;
+    const onKey = (e) => {
+      if (e.key === "Escape") setTabletDrawer(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [tabletDrawer]);
+
   function selectSection(id) {
     setTab("canvas");
+    setTabletDrawer(null);
     setFocus((f) => ({ id, nonce: f.nonce + 1 }));
   }
 
@@ -396,10 +408,15 @@ export function WorkspaceShell({
   function triggerExplainSelection() {
     setTab("explanation");
     setRightTab("assistant");
+    setTabletDrawer("explanation");
     onExplainSelection?.();
   }
 
-  const panel = (key) => clsx(tab === key ? "block" : "hidden", "desk:block");
+  // Mobile (<768px) uses tabs; Tablet (768..1199px) keeps Canvas central with collapsible drawers; Desktop (>=1200px) uses 3-column grid.
+  const panel = (key) => {
+    if (key === "canvas") return clsx(tab === "canvas" ? "block" : "hidden", "md:block");
+    return clsx(tab === key ? "block md:hidden" : "hidden", "desk:block");
+  };
 
   return (
     <div className="flex h-[calc(100dvh-3.5rem)] flex-col lg:h-dvh" data-testid="visual-workspace">
@@ -426,7 +443,7 @@ export function WorkspaceShell({
         {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
       </header>
 
-      <div role="tablist" aria-label="Workspace panels" id={tablistId} className="flex border-b border-stone-200 bg-surface desk:hidden">
+      <div role="tablist" aria-label="Workspace panels" id={tablistId} className="flex border-b border-stone-200 bg-surface md:hidden">
         {TABS.map(({ key, label, icon: Icon }) => (
           <button
             key={key}
@@ -447,7 +464,31 @@ export function WorkspaceShell({
         ))}
       </div>
 
-      <div className="min-h-0 flex-1 desk:grid desk:grid-cols-[18rem_minmax(0,1fr)_22rem]">
+      {/* Tablet bar (768..1199px, PRD 13.2): keep canvas central with collapsible side drawers. */}
+      <div className="hidden items-center justify-between border-b border-stone-200 bg-surface px-4 py-1.5 md:flex desk:hidden" data-testid="tablet-panel-bar">
+        <Button
+          size="sm"
+          variant={tabletDrawer === "outline" ? "primary" : "secondary"}
+          aria-expanded={tabletDrawer === "outline"}
+          onClick={() => setTabletDrawer((d) => (d === "outline" ? null : "outline"))}
+          data-testid="tablet-outline-toggle"
+        >
+          <ListTree className="h-3.5 w-3.5" aria-hidden="true" />
+          Outline
+        </Button>
+        <Button
+          size="sm"
+          variant={tabletDrawer === "explanation" ? "primary" : "secondary"}
+          aria-expanded={tabletDrawer === "explanation"}
+          onClick={() => setTabletDrawer((d) => (d === "explanation" ? null : "explanation"))}
+          data-testid="tablet-assistant-toggle"
+        >
+          <MessageSquareText className="h-3.5 w-3.5" aria-hidden="true" />
+          {renderAssistantPanel ? "Notes & Assistant" : "Explanation"}
+        </Button>
+      </div>
+
+      <div className="relative min-h-0 flex-1 desk:grid desk:grid-cols-[18rem_minmax(0,1fr)_22rem]">
         <aside
           id={`${tablistId}-outline-panel`}
           aria-labelledby={`${tablistId}-outline`}
@@ -608,6 +649,82 @@ export function WorkspaceShell({
             <p className="text-sm text-stone-600">No explanation available.</p>
           )}
         </aside>
+
+        {tabletDrawer && (
+          <div className="absolute inset-0 z-30 hidden md:flex desk:hidden" data-testid="tablet-drawer">
+            <div
+              className="flex-1 bg-black/30"
+              aria-hidden="true"
+              onClick={() => setTabletDrawer(null)}
+            />
+            <aside
+              role="region"
+              aria-label={tabletDrawer === "outline" ? "Outline drawer" : "Explanation and study assistant drawer"}
+              className="animate-slide-in-right flex h-full w-80 max-w-[85vw] flex-col border-l border-stone-200 bg-surface shadow-xl"
+            >
+              <div className="flex items-center justify-between border-b border-stone-200 px-4 py-2.5">
+                <span className="text-xs font-semibold uppercase tracking-wide text-stone-600">
+                  {tabletDrawer === "outline" ? "Outline" : renderAssistantPanel ? "Notes & Study Assistant" : "Explanation"}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setTabletDrawer(null)}
+                  className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md p-1.5 text-stone-600 hover:bg-stone-100 hover:text-stone-900"
+                  aria-label="Close panel drawer"
+                >
+                  <X className="h-4 w-4" aria-hidden="true" />
+                </button>
+              </div>
+              <div className="min-h-0 flex-1 overflow-y-auto p-5">
+                {tabletDrawer === "outline" ? (
+                  plan ? (
+                    <OutlinePanel
+                      plan={plan}
+                      warnings={warnings}
+                      drawnSectionIds={drawnSectionIds}
+                      activeSectionId={focus.id}
+                      onSelectSection={selectSection}
+                      sourceInfo={sourceInfo}
+                    />
+                  ) : (
+                    <p className="text-sm text-stone-600">This note has no outline.</p>
+                  )
+                ) : (
+                  <>
+                    {renderAssistantPanel && (
+                      <div className="mb-4">
+                        <SegmentedControl
+                          label="Drawer panel view"
+                          size="sm"
+                          value={rightTab}
+                          onChange={setRightTab}
+                          options={[
+                            { value: "explanation", label: "Explanation", icon: MessageSquareText },
+                            { value: "assistant", label: "Study Assistant", icon: Sparkles },
+                          ]}
+                        />
+                      </div>
+                    )}
+                    {renderAssistantPanel && rightTab === "assistant" ? (
+                      renderAssistantPanel({ onFocusSection: selectSection })
+                    ) : plan ? (
+                      <ExplanationPanel
+                        plan={plan}
+                        activeSectionId={focus.id}
+                        drawnSectionIds={drawnSectionIds}
+                        onSelectSection={selectSection}
+                        onRegenerateSection={onRegenerateSection}
+                        regeneratingSectionId={regeneratingSectionId}
+                      />
+                    ) : (
+                      <p className="text-sm text-stone-600">No explanation available.</p>
+                    )}
+                  </>
+                )}
+              </div>
+            </aside>
+          </div>
+        )}
       </div>
     </div>
   );

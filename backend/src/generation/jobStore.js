@@ -168,4 +168,16 @@ export class SupabaseJobStore {
     if (failed.error) throw dbError(failed.error);
     return (cancelled.data?.length ?? 0) + (failed.data?.length ?? 0);
   }
+
+  /** Redacted operator view (never returns prompts, scenes, plans, emails or source refs). */
+  async getRedactedJobForAdmin(jobId) {
+    if (!this._admin) return null;
+    const { data, error } = await this.admin
+      .from("generation_jobs")
+      .select("id, owner_id, input_type, status, stage, progress, attempt_count, model_id, error_code, created_at, started_at, finished_at")
+      .eq("id", jobId)
+      .maybeSingle();
+    if (error) throw dbError(error);
+    return data;
+  }
 }

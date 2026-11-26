@@ -29,7 +29,7 @@ if (!key || /YOUR_/i.test(key)) {
 const config = {
   generation: {
     enabled: true,
-    model: process.env.GEMINI_MODEL || "gemini-3.5-flash",
+    model: process.env.GEMINI_MODEL || "gemini-3.5-flash-lite",
     maxConcurrency: 1,
     plannerTimeoutMs: 120_000,
     jobTimeoutMs: 300_000,

@@ -12,6 +12,7 @@
   "dependencies": {
     "@excalidraw/excalidraw": "0.18.1",
     "@hookform/resolvers": "5.9.2",
+    "@sentry/react": "11.18.0",
     "@supabase/supabase-js": "2.119.0",
     "@tanstack/react-query": "5.107.1",
     "clsx": "2.1.1",

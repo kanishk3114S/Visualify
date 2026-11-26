@@ -1,4 +1,4 @@
-import { loadConfig, loadEnvFiles } from "./config/env.js";
+import { ensureProductionServiceRole, loadConfig, loadEnvFiles } from "./config/env.js";
 import { createApp } from "./app.js";
 import { createLogger } from "./utils/logger.js";
 import { loadWorkerEnv } from "@visualify/worker";
@@ -12,6 +12,7 @@ loadWorkerEnv();
 let config;
 try {
   config = loadConfig();
+  ensureProductionServiceRole(config);
 } catch (err) {
   // Message lists variable names only, never values.
   console.error(err.message);
@@ -21,17 +22,23 @@ try {
 const logger = createLogger(config);
 const app = createApp({ config, logger });
 
-const { generation } = app.locals;
+const { generation, redis } = app.locals;
 
 const server = app.listen(config.port, () => {
   logger.info(
-    { port: config.port, origins: config.frontendOrigins, generationEnabled: config.generation.enabled, model: config.generation.model },
+    {
+      port: config.port,
+      origins: config.frontendOrigins,
+      generationEnabled: config.generation.enabled,
+      queueMode: generation.mode ?? "in_process",
+      model: config.generation.model,
+    },
     "Visualify API listening"
   );
 });
 
 if (config.generation.enabled) {
-  // In-process queue: anything still "active" in the DB belongs to a dead process.
+  // Recover orphaned rows left active by a previous process crash.
   generation.service.recoverInterruptedJobs().catch((err) => logger.error({ err }, "interrupted-job recovery failed"));
 } else {
   logger.warn("generation disabled: set SUPABASE_SERVICE_ROLE_KEY and GEMINI_API_KEY to enable it");
@@ -40,9 +47,14 @@ if (config.generation.enabled) {
 server.headersTimeout = 30_000;
 server.requestTimeout = 60_000;
 
-function shutdown(signal) {
+async function shutdown(signal) {
   logger.info({ signal }, "shutting down");
-  generation.service.shutdown();
+  try {
+    await generation.service.shutdown();
+    await redis?.quit?.();
+  } catch {
+    /* ignore shutdown cleanup errors */
+  }
   server.close(() => process.exit(0));
   setTimeout(() => process.exit(1), 10_000).unref();
 }

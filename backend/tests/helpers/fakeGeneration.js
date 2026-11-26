@@ -179,6 +179,25 @@ export class InMemoryJobStore {
     this.rows.set(full.id, full);
     return full;
   }
+
+  async getRedactedJobForAdmin(jobId) {
+    const row = this.rows.get(jobId);
+    if (!row) return null;
+    return {
+      id: row.id,
+      owner_id: row.owner_id,
+      input_type: row.input_type,
+      status: row.status,
+      stage: row.stage ?? null,
+      progress: row.progress ?? 0,
+      attempt_count: row.attempt_count ?? 1,
+      model_id: row.model_id ?? null,
+      error_code: row.error_code ?? null,
+      created_at: row.created_at ?? null,
+      started_at: row.started_at ?? null,
+      finished_at: row.finished_at ?? null,
+    };
+  }
 }
 
 /** A promise you can resolve from the outside. */
@@ -246,12 +265,12 @@ export function createFakePipelineDeps(store = null) {
   return deps;
 }
 
-export function createTestGenerationStack({ config, logger, enabled = true, concurrency = 2, heartbeatMs = 50, generationOverrides = {}, supabaseState = null } = {}) {
+export function createTestGenerationStack({ config, logger, enabled = true, concurrency = 2, heartbeatMs = 50, generationOverrides = {}, supabaseState = null, usageService = null } = {}) {
   const store = new InMemoryJobStore(supabaseState);
   const bus = new JobEventBus();
   const queue = new InProcessQueue({ concurrency, logger });
   const pipelineDeps = createFakePipelineDeps(store);
   const cfg = { ...config, generation: { ...config.generation, enabled, ...generationOverrides } };
-  const service = createGenerationService({ config: cfg, store, queue, bus, pipelineDeps, logger });
+  const service = createGenerationService({ config: cfg, store, queue, bus, pipelineDeps, usageService, logger });
   return { service, store, bus, queue, pipelineDeps, heartbeatMs };
 }

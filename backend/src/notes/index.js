@@ -17,10 +17,9 @@ import { createNotesService } from "./notesService.js";
  * Notes stack. Note CRUD, versions, study artifacts & exports run through the
  * caller's RLS client (`req.db`); optional usage metering writes via service_role.
  */
-export function createNotesStack({ config, gateway, generation, logger, renderer, companion, compileSection }) {
+export function createNotesStack({ config, gateway, generation, logger, renderer, companion, compileSection, usageService = null }) {
   const tasks = new InProcessQueue({ concurrency: 1, logger });
   const g = config.generation;
-  const adminDb = gateway?.createAdminClient?.() ?? null;
 
   const defaultCompanion = {
     enabled: Boolean(g.geminiConfigured),
@@ -35,19 +34,13 @@ export function createNotesStack({ config, gateway, generation, logger, renderer
   const defaultCompileSection = (spec, { visualStyle, signal } = {}) =>
     compileDiagramSpecToScene(spec, { signal, visualStyle, browserPath: g.browserPath, timeoutMs: g.cliTimeoutMs });
 
-  const usageRecorder = adminDb
-    ? async ({ ownerId, eventType, units = 1, metadata = {} }) => {
-        await adminDb.from("usage_events").insert({ owner_id: ownerId, event_type: eventType, units, metadata });
-      }
-    : null;
-
   const service = createNotesService({
     renderer: renderer ?? createCliRenderer({ browserPath: g.browserPath, timeoutMs: g.cliTimeoutMs }),
     jobStore: generation.store,
     tasks,
     companion: companion ?? defaultCompanion,
     compileSection: compileSection ?? defaultCompileSection,
-    usageRecorder,
+    usageService,
     logger,
   });
   const contextFor = (req) => ({

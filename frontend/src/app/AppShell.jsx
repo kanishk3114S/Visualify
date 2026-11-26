@@ -139,12 +139,12 @@ export function AppShell() {
       {/* Mobile top bar */}
       <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-stone-200 bg-surface/95 px-4 lg:hidden">
         <Logo to="/app" />
-        <button
+          <button
           type="button"
           onClick={() => setMobileOpen((v) => !v)}
           aria-expanded={mobileOpen}
           aria-controls="app-nav"
-          className="rounded-md p-2 text-stone-700 hover:bg-stone-100"
+          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md p-2 text-stone-700 hover:bg-stone-100"
           aria-label={mobileOpen ? "Close navigation" : "Open navigation"}
         >
           {mobileOpen ? <X className="h-5 w-5" aria-hidden="true" /> : <Menu className="h-5 w-5" aria-hidden="true" />}

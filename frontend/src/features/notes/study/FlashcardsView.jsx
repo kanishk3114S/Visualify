@@ -6,11 +6,14 @@ import { Badge, Card } from "../../../components/Layout.jsx";
 import { FormAlert } from "../../../components/Field.jsx";
 import { SegmentedControl } from "../../../components/SegmentedControl.jsx";
 import { useCreateFlashcards, useUpdateFlashcard } from "../../../hooks/useNotes.js";
+import { useUsage } from "../../../hooks/useProfile.js";
 import { summarizeFlashcards } from "../../../lib/frames.js";
 
 export function FlashcardsView({ noteId, flashcards = [] }) {
   const createCards = useCreateFlashcards();
   const updateCard = useUpdateFlashcard();
+  const { data: usage } = useUsage();
+  const quotaReached = Boolean(usage && usage.remaining <= 0);
   const [filter, setFilter] = useState("all");
   const [index, setIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
@@ -67,7 +70,7 @@ export function FlashcardsView({ noteId, flashcards = [] }) {
             <h2 className="text-base font-semibold text-stone-900">Flashcards</h2>
             <p className="text-xs text-stone-600">Click or press Space to flip a card, then mark whether you know it or want another review.</p>
           </div>
-          <Button size="sm" onClick={handleGenerate} loading={createCards.isPending} loadingText="Creating cards…" data-testid="generate-flashcards-btn">
+          <Button size="sm" onClick={handleGenerate} loading={createCards.isPending} disabled={quotaReached} loadingText="Creating cards…" data-testid="generate-flashcards-btn">
             {flashcards.length ? <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" /> : <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />}
             {flashcards.length ? "Regenerate deck" : "Generate flashcards"}
           </Button>

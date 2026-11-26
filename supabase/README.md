@@ -1,6 +1,6 @@
 # Visualify — Supabase setup
 
-Everything Supabase needs for Phases 1–5 lives here:
+Everything Supabase needs for Phases 1–6 lives here:
 
 | File | Purpose |
 | :--- | :--- |
@@ -12,10 +12,12 @@ Everything Supabase needs for Phases 1–5 lives here:
 | `migrations/0006_source_files.sql` | Phase 4 `public.source_files` table, RLS policies, `generation_jobs` source columns & `extracting` status, `notes.source_type`, `link_source_file_to_note`, and updated note RPCs |
 | `migrations/0007_source_files_bucket.sql` | Private `source-files` bucket (20 MiB limit for PDF, JPEG, PNG, WebP) scoped to `{uid}/{sourceFileId}/...` |
 | `migrations/0008_learning_companion.sql` | Phase 5 `note_quizzes`, `note_flashcards`, `note_revision_guides`, `usage_events`, `note_exports` (`zip`, `scope`, `frame_id`), `note-exports` `application/zip` MIME allowlist, `'regenerate'` version kind |
+| `migrations/0009_phase6_hardening.sql` | Phase 6 `'selection'` export scope, extended `usage_events` event types & `consume_monthly_quota` advisory-lock RPC (`service_role` only) |
 | `tests/rls.pglite.test.js` | **Offline** verification of Phases 1–2 migrations on real Postgres (PGlite) — no credentials needed |
 | `tests/notes.pglite.test.js` | **Offline** verification of Phase 3 migrations (`0004`, `0005`) on real Postgres (PGlite) |
 | `tests/sources.pglite.test.js` | **Offline** verification of Phase 4 migrations (`0006`, `0007`) on real Postgres (PGlite) |
 | `tests/learning_companion.pglite.test.js` | **Offline** verification of Phase 5 migration (`0008`) on real Postgres (PGlite) |
+| `tests/phase6_hardening.pglite.test.js` | **Offline** verification of Phase 6 migration (`0009`), concurrent quota locks & 12-table account deletion cascade on PGlite |
 | `tests/rls.live.test.js` | **Live** cross-user verification against a real dev/staging project |
 | `tests/supabase-stub.sql` | Minimal emulation of Supabase's `auth`/`storage` schemas used only by the offline test. **Never apply it to a real project.** |
 
@@ -41,7 +43,7 @@ npx supabase@latest db push
 
 **Option B — Dashboard SQL editor**
 
-Open *SQL Editor* → paste and run `0001_profiles_and_rls.sql`, then `0002_avatars_storage_bucket.sql`, then `0003_generation_jobs.sql` (Phase 2), then `0004_folders_notes_versions_exports.sql` and `0005_note_storage_buckets.sql` (Phase 3), then `0006_source_files.sql` and `0007_source_files_bucket.sql` (Phase 4), then `0008_learning_companion.sql` (Phase 5).
+Open *SQL Editor* → paste and run `0001_profiles_and_rls.sql`, then `0002_avatars_storage_bucket.sql`, then `0003_generation_jobs.sql` (Phase 2), then `0004_folders_notes_versions_exports.sql` and `0005_note_storage_buckets.sql` (Phase 3), then `0006_source_files.sql` and `0007_source_files_bucket.sql` (Phase 4), then `0008_learning_companion.sql` (Phase 5), then `0009_phase6_hardening.sql` (Phase 6).
 
 **Check it worked** (SQL editor):
 
@@ -101,7 +103,7 @@ Copy-Item backend\.env.example backend\.env.local
 ## 7. Verify
 
 ```powershell
-npm run test:rls:sql    # offline: 62 SQL checks on real Postgres (PGlite)
+npm run test:rls:sql    # offline: 65 SQL checks on real Postgres (PGlite)
 npm run test:rls:live   # live: creates two throwaway users, checks cross-user isolation, deletes them
 ```
 

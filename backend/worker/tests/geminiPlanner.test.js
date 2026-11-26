@@ -198,4 +198,33 @@ describe("geminiPlanner (unit tests with fault-injected mock client)", () => {
       })
     ).rejects.toBeInstanceOf(GeminiPlannerError);
   });
+
+  it("fails over immediately to gemini-3.5-flash-lite with low thinkingLevel when primary hits 503", async () => {
+    const mockClient = {
+      models: {
+        generateContent: vi
+          .fn()
+          .mockRejectedValueOnce({ status: 503, message: "high demand" })
+          .mockResolvedValueOnce({ text: VALID_PLAN_JSON, usageMetadata: { totalTokenCount: 180 } }),
+      },
+    };
+
+    const result = await generateLearningPlan({
+      prompt: "Explain TCP handshake",
+      client: mockClient,
+      model: "gemini-3.5-flash",
+      retryBaseDelayMs: 5,
+    });
+
+    expect(result.model).toBe("gemini-3.5-flash-lite");
+    expect(mockClient.models.generateContent).toHaveBeenCalledTimes(2);
+    expect(mockClient.models.generateContent.mock.calls[0][0]).toMatchObject({
+      model: "gemini-3.5-flash",
+      config: { thinkingConfig: { thinkingLevel: "LOW" } },
+    });
+    expect(mockClient.models.generateContent.mock.calls[1][0]).toMatchObject({
+      model: "gemini-3.5-flash-lite",
+      config: { thinkingConfig: { thinkingLevel: "LOW" } },
+    });
+  });
 });

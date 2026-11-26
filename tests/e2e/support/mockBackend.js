@@ -71,9 +71,23 @@ const fail = (code, message, details = null) => ({ success: false, data: null, e
  * Intercepts /api/v1/* with an in-memory profile. Returns the call log and
  * a handle to the current profile so tests can assert on what was sent.
  */
-export async function mockApi(page, { profile = makeProfile(), takenUsernames = [], failMe = false, generations = null, notes, sources = null } = {}) {
+export async function mockApi(page, { profile = makeProfile(), takenUsernames = [], failMe = false, generations = null, notes, sources = null, usage = null, deletePassword = "Password123!" } = {}) {
   const sourceStore = sources ?? new Map();
-  const state = { profile: structuredClone(profile), calls: [], generations, notes: notes === undefined ? createNotesMock({ generations, sources: sourceStore }) : notes, sources: sourceStore };
+  const state = {
+    profile: structuredClone(profile),
+    calls: [],
+    generations,
+    notes: notes === undefined ? createNotesMock({ generations, sources: sourceStore }) : notes,
+    sources: sourceStore,
+    usage: usage ?? {
+      periodStart: "2026-11-01T00:00:00.000Z",
+      resetsAt: "2026-12-01T00:00:00.000Z",
+      limit: 50,
+      used: 4,
+      remaining: 46,
+      breakdown: { generations: 2, companion: 2, exports: 1 },
+    },
+  };
 
   await page.route(`${API_BASE}/api/v1/**`, async (route) => {
     const req = route.request();
@@ -96,6 +110,20 @@ export async function mockApi(page, { profile = makeProfile(), takenUsernames = 
     if (url.pathname === "/api/v1/me" && req.method() === "GET") {
       if (failMe) return json(502, fail("DATABASE_ERROR", "We couldn't complete that request. Please try again."));
       return json(200, ok({ profile: state.profile }));
+    }
+    if (url.pathname === "/api/v1/me/usage" && req.method() === "GET") {
+      return json(200, ok({ usage: state.usage }));
+    }
+    if (url.pathname === "/api/v1/me" && req.method() === "DELETE") {
+      const body = req.postDataJSON();
+      state.calls.at(-1).body = structuredClone(body);
+      if (body?.confirmation !== "DELETE MY ACCOUNT") {
+        return json(400, fail("VALIDATION_ERROR", 'Type "DELETE MY ACCOUNT" to confirm.'));
+      }
+      if (body?.password && body.password !== deletePassword) {
+        return json(403, fail("REAUTH_REQUIRED", "Incorrect password. Enter your current password to delete your account."));
+      }
+      return json(200, ok({ deleted: true, removedObjects: 2 }));
     }
     if (url.pathname === "/api/v1/me" && req.method() === "PATCH") {
       const patch = req.postDataJSON();

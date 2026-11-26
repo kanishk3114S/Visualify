@@ -43,7 +43,34 @@ export function createSupabaseGateway(config, { fetchImpl = globalThis.fetch } =
         id: data.user.id,
         email: data.user.email ?? null,
         metadata: data.user.user_metadata ?? {},
+        appMetadata: data.user.app_metadata ?? {},
+        lastSignInAt: data.user.last_sign_in_at ?? null,
       };
+    },
+
+    /** Re-authenticates email+password credentials using a non-persisting ephemeral client. */
+    async verifyPassword(email, password) {
+      if (!email || !password) return false;
+      const ephemeral = createClient(config.supabaseUrl, config.supabasePublishableKey, SERVER_CLIENT_OPTIONS);
+      const { data, error } = await ephemeral.auth.signInWithPassword({ email, password });
+      if (error) {
+        const status = Number(error.status) || 0;
+        if (status >= 400 && status < 500) return false;
+        throw new AppError(503, "AUTH_UNAVAILABLE", "Authentication service is temporarily unavailable.", { cause: error });
+      }
+      return Boolean(data?.user?.id);
+    },
+
+    /** Permanently deletes an auth.users record using the service-role admin API. */
+    async deleteAuthUser(userId) {
+      if (!config.supabaseServiceRoleKey) {
+        throw new AppError(503, "ACCOUNT_DELETE_UNAVAILABLE", "Account deletion requires server configuration.");
+      }
+      const admin = createClient(config.supabaseUrl, config.supabaseServiceRoleKey, SERVER_CLIENT_OPTIONS);
+      const { error } = await admin.auth.admin.deleteUser(userId);
+      if (error) {
+        throw new AppError(502, "ACCOUNT_DELETE_FAILED", "Could not complete account deletion. Please try again.", { cause: error });
+      }
     },
 
     /** RLS-enforced client acting as the verified user. */

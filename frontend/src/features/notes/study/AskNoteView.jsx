@@ -4,9 +4,12 @@ import { Button } from "../../../components/Button.jsx";
 import { Badge, Card } from "../../../components/Layout.jsx";
 import { FormAlert, TextField } from "../../../components/Field.jsx";
 import { useAskNote } from "../../../hooks/useNotes.js";
+import { useUsage } from "../../../hooks/useProfile.js";
 
 export function AskNoteView({ noteId, onFocusSection }) {
   const ask = useAskNote();
+  const { data: usage } = useUsage();
+  const quotaReached = Boolean(usage && usage.remaining <= 0);
   const [question, setQuestion] = useState("");
   const [messages, setMessages] = useState([]);
   const [error, setError] = useState(null);
@@ -44,7 +47,7 @@ export function AskNoteView({ noteId, onFocusSection }) {
               onChange={(e) => setQuestion(e.target.value)}
             />
           </div>
-          <Button type="submit" loading={ask.isPending} loadingText="Thinking…" data-testid="ask-note-submit">
+          <Button type="submit" loading={ask.isPending} disabled={quotaReached} loadingText="Thinking…" data-testid="ask-note-submit">
             <Send className="h-4 w-4" aria-hidden="true" />
             Ask
           </Button>

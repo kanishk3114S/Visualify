@@ -2,6 +2,8 @@ import { Writable } from "node:stream";
 import { loadConfig } from "../../src/config/env.js";
 import { createApp } from "../../src/app.js";
 import { createLogger } from "../../src/utils/logger.js";
+import { createUsageService } from "../../src/services/usageService.js";
+import { createAccountService } from "../../src/services/accountService.js";
 import { createFakeSupabase } from "./fakeSupabase.js";
 import { createTestGenerationStack } from "./fakeGeneration.js";
 import { createTestNotesStack } from "./fakeNotes.js";
@@ -22,7 +24,10 @@ export const BASE_ENV = Object.freeze({
  * Builds an app wired to the fake Supabase gateway with a capturing logger,
  * so tests can assert on exactly what would be written to production logs.
  */
-export function buildTestApp(envOverrides = {}, { generationEnabled = true, generation: generationOptions = {}, notes: notesOptions = {} } = {}) {
+export function buildTestApp(
+  envOverrides = {},
+  { generationEnabled = true, generation: generationOptions = {}, notes: notesOptions = {}, redis = null, sentry = null } = {}
+) {
   const config = loadConfig({ ...BASE_ENV, ...envOverrides });
   const fake = createFakeSupabase();
   const logLines = [];
@@ -33,8 +38,10 @@ export function buildTestApp(envOverrides = {}, { generationEnabled = true, gene
     },
   });
   const logger = createLogger({ ...config, logLevel: "debug" }, sink);
-  const generation = createTestGenerationStack({ config, logger, enabled: generationEnabled, supabaseState: fake.state, ...generationOptions });
-  const notes = createTestNotesStack({ generation, logger, ...notesOptions });
-  const app = createApp({ config, gateway: fake.gateway, logger, generation, notes });
-  return { app, config, ...fake, generation, notes, logLines, logText: () => logLines.join("") };
+  const usageService = createUsageService({ config, logger, memoryEvents: fake.state.usageEvents });
+  const accountService = createAccountService({ gateway: fake.gateway, logger });
+  const generation = createTestGenerationStack({ config, logger, enabled: generationEnabled, supabaseState: fake.state, usageService, ...generationOptions });
+  const notes = createTestNotesStack({ generation, logger, usageService, ...notesOptions });
+  const app = createApp({ config, gateway: fake.gateway, logger, redis, sentry, usageService, accountService, generation, notes });
+  return { app, config, ...fake, generation, notes, usageService, accountService, logLines, logText: () => logLines.join("") };
 }

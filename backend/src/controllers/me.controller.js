@@ -19,7 +19,7 @@ import {
  * Controllers for /api/v1/me*. Identity ALWAYS comes from req.user (verified
  * token); req.db is the RLS-scoped client for that same user.
  */
-export function createMeController(config) {
+export function createMeController(config, { usageService = null, accountService = null } = {}) {
   const ttl = config.avatarSignedUrlTtlSeconds;
 
   async function respondWithProfile(req, res, row, status = 200) {
@@ -86,6 +86,28 @@ export function createMeController(config) {
       }
       const row = await updateProfile(req.db, req.user.id, { avatar_path: null });
       return respondWithProfile(req, res, row);
+    },
+
+    async getUsage(req, res) {
+      if (!usageService) {
+        return sendSuccess(res, {
+          usage: { limit: config.generationLimitMonthly ?? 50, used: 0, remaining: config.generationLimitMonthly ?? 50, breakdown: { generations: 0, companion: 0, exports: 0 } },
+        });
+      }
+      const usage = await usageService.getMonthlyUsage({ db: req.db, userId: req.user.id });
+      return sendSuccess(res, { usage });
+    },
+
+    async deleteAccount(req, res) {
+      if (!accountService) {
+        throw new AppError(503, "ACCOUNT_DELETE_UNAVAILABLE", "Account deletion is unavailable right now.");
+      }
+      const result = await accountService.deleteAccount({
+        user: req.user,
+        reqDb: req.db,
+        password: req.body?.password ?? null,
+      });
+      return sendSuccess(res, result);
     },
   };
 }

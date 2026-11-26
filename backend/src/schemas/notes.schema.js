@@ -54,14 +54,24 @@ export const draftSchema = z.strictObject({
   baseRevision: z.number().int().min(0).max(2_000_000_000),
 });
 
-export const exportSchema = z.strictObject({
-  format: z.enum(["png", "svg", "excalidraw", "zip"], { error: "Choose png, svg, excalidraw or zip." }),
-  theme: z.enum(["light", "dark"]).default("light"),
-  transparent: z.boolean().default(false),
-  scope: z.enum(["full", "frame"]).default("full"),
-  frameId: z.string().trim().min(1).max(160).optional(),
-  slideFormat: z.enum(["png", "svg"]).default("png"),
-});
+export const exportSchema = z
+  .strictObject({
+    format: z.enum(["png", "svg", "excalidraw", "zip"], { error: "Choose png, svg, excalidraw or zip." }),
+    theme: z.enum(["light", "dark"]).default("light"),
+    transparent: z.boolean().default(false),
+    scope: z.enum(["full", "frame", "selection"]).default("full"),
+    frameId: z.string().trim().min(1).max(160).optional(),
+    elementIds: z.array(z.string().trim().min(1).max(120)).min(1, "Select at least one element to export.").max(200, "Selection export is limited to 200 elements.").optional(),
+    slideFormat: z.enum(["png", "svg"]).default("png"),
+  })
+  .superRefine((v, ctx) => {
+    if (v.scope === "selection" && (!v.elementIds || v.elementIds.length === 0)) {
+      ctx.addIssue({ code: "custom", path: ["elementIds"], message: "Choose at least one element to export." });
+    }
+    if (v.scope === "selection" && v.format === "zip") {
+      ctx.addIssue({ code: "custom", path: ["format"], message: "ZIP archives export slides, not individual element selections." });
+    }
+  });
 
 const VISUAL_TYPES = ["flowchart", "sequence", "mindmap", "comparison", "timeline", "er_diagram", "class_diagram"];
 

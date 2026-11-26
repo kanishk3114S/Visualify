@@ -5,6 +5,7 @@ import {
 } from "@visualify/worker";
 import { JobEventBus } from "./eventBus.js";
 import { InProcessQueue } from "./inProcessQueue.js";
+import { BullMQGenerationQueue } from "./bullmqQueue.js";
 import { SupabaseJobStore } from "./jobStore.js";
 import { toSafeError } from "./jobStates.js";
 import { createGenerationService } from "./generationService.js";
@@ -58,11 +59,18 @@ export function createPipelineDeps(config, store = null) {
  * Builds the generation stack. With no service-role key the store can still
  * serve owner reads (through the user's RLS client) but generation is disabled.
  */
-export function createGenerationStack({ config, gateway, logger, pipelineDeps }) {
+export function createGenerationStack({ config, gateway, logger, pipelineDeps, redis = null, usageService = null }) {
   const store = new SupabaseJobStore(gateway.createAdminClient());
   const bus = new JobEventBus();
-  const queue = new InProcessQueue({ concurrency: config.generation.maxConcurrency, logger });
+  const queue = redis
+    ? new BullMQGenerationQueue({
+        connection: redis,
+        concurrency: config.generation.maxConcurrency,
+        logger,
+        subClient: redis.duplicate?.(),
+      })
+    : new InProcessQueue({ concurrency: config.generation.maxConcurrency, logger });
   const deps = pipelineDeps ?? createPipelineDeps(config, store);
-  const service = createGenerationService({ config, store, queue, bus, pipelineDeps: deps, logger });
-  return { service, store, bus, queue };
+  const service = createGenerationService({ config, store, queue, bus, pipelineDeps: deps, usageService, logger });
+  return { service, store, bus, queue, mode: redis ? "bullmq" : "in_process" };
 }

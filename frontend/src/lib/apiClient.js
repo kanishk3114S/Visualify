@@ -107,6 +107,7 @@ export async function apiRequest(path, { method = "GET", body, formData, signal 
 
 export const meApi = {
   get: ({ signal } = {}) => apiRequest("/me", { signal }).then((d) => d.profile),
+  usage: ({ signal } = {}) => apiRequest("/me/usage", { signal }).then((d) => d.usage),
   update: (patch) => apiRequest("/me", { method: "PATCH", body: patch }).then((d) => d.profile),
   uploadAvatar: (file) => {
     const formData = new FormData();
@@ -114,6 +115,7 @@ export const meApi = {
     return apiRequest("/me/avatar", { method: "POST", formData }).then((d) => d.profile);
   },
   removeAvatar: () => apiRequest("/me/avatar", { method: "DELETE" }).then((d) => d.profile),
+  deleteAccount: (body) => apiRequest("/me", { method: "DELETE", body }),
 };
 
 const jobPath = (jobId) => `/generations/${encodeURIComponent(jobId)}`;

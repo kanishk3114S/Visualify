@@ -1,0 +1,69 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies cleanly from lockfile
+        run: npm ci
+
+      - name: Lint & boundary checks
+        run: npm run lint
+
+      - name: Install Chromium for worker CLI & Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Run worker tests (includes @excalidraw/cli renders)
+        env:
+          EXCALIDRAW_BROWSER_PATH: /usr/bin/google-chrome
+        run: |
+          CHROME_BIN=$(command -v chromium || command -v chromium-browser || command -v google-chrome || find ~/.cache/ms-playwright -name chrome -type f | head -n 1)
+          EXCALIDRAW_BROWSER_PATH="$CHROME_BIN" npm run test:worker
+
+      - name: Run Express API tests
+        run: npm run test:api
+
+      - name: Run PGlite Postgres SQL/RLS migration tests
+        run: npm run test:rls:sql
+
+      - name: Run Frontend unit & CSP hash verification tests
+        run: npm run test:frontend
+
+      - name: Build Frontend production bundle (no source maps)
+        env:
+          VITE_SUPABASE_URL: https://ci-placeholder.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_placeholder_key_value
+          VITE_API_BASE_URL: https://api.ci-placeholder.invalid
+        run: npm run build:frontend
+
+      - name: Verify zero source maps and zero secret strings in frontend/dist
+        run: |
+          if find frontend/dist -name '*.map' | grep -q .; then
+            echo "ERROR: Source maps found in frontend/dist!"
+            exit 1
+          fi
+          if grep -rnE "SUPABASE_SERVICE_ROLE_KEY|GEMINI_API_KEY|REDIS_URL|sb_secret_" frontend/dist/; then
+            echo "ERROR: Server secret name or value found in frontend/dist!"
+            exit 1
+          fi
+
+      - name: Run Playwright E2E + Axe WCAG 2 AA + Motion & Tablet checks
+        run: npm run test:e2e

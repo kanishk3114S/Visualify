@@ -31,33 +31,43 @@ function RadioGroup({ legend, name, value, onChange, options, disabled }) {
     <fieldset className="space-y-2" disabled={disabled}>
       <legend className="text-sm font-medium text-stone-800">{legend}</legend>
       <div className="grid gap-2 sm:grid-cols-2">
-        {options.map((o) => (
-          <label
-            key={o.value}
-            className={clsx(
-              "flex cursor-pointer flex-col rounded-lg border px-3 py-2.5 text-sm",
-              value === o.value ? "border-accent-700 bg-accent-50" : "border-stone-200 hover:border-stone-300",
-              disabled && "cursor-not-allowed opacity-60"
-            )}
-          >
-            <span className="flex items-center gap-2 font-medium text-stone-900">
-              <input type="radio" name={name} value={o.value} checked={value === o.value} onChange={() => onChange(o.value)} className="accent-accent-700" />
-              {o.label}
-            </span>
-            {o.hint && <span className="mt-0.5 pl-5 text-xs text-stone-600">{o.hint}</span>}
-          </label>
-        ))}
+        {options.map((o) => {
+          const itemDisabled = disabled || o.disabled;
+          return (
+            <label
+              key={o.value}
+              className={clsx(
+                "flex flex-col rounded-lg border px-3 py-2.5 text-sm transition-colors",
+                itemDisabled ? "cursor-not-allowed opacity-55" : "cursor-pointer",
+                value === o.value ? "border-accent-700 bg-accent-50" : "border-stone-200 hover:border-stone-300"
+              )}
+            >
+              <span className="flex items-center gap-2 font-medium text-stone-900">
+                <input
+                  type="radio"
+                  name={name}
+                  value={o.value}
+                  checked={value === o.value}
+                  disabled={itemDisabled}
+                  onChange={() => !itemDisabled && onChange(o.value)}
+                  className="accent-accent-700"
+                />
+                {o.label}
+              </span>
+              {o.hint && <span className="mt-0.5 pl-5 text-xs text-stone-600">{o.hint}</span>}
+            </label>
+          );
+        })}
       </div>
     </fieldset>
   );
 }
 
 /**
- * PNG / SVG / .excalidraw / ZIP export (FR-EXP-01..05). Supports full scene or
- * single-frame/section scope. `beforeExport` flushes autosave so the export
- * always contains the latest edits.
+ * PNG / SVG / .excalidraw / ZIP export (FR-EXP-01..05). Supports full scene,
+ * single-frame/section, and selected element IDs scope.
  */
-export function ExportDialog({ open, onClose, note, frames = [], beforeExport }) {
+export function ExportDialog({ open, onClose, note, frames = [], selectedElements = [], beforeExport }) {
   const { data: profile } = useProfile();
   const exportNote = useExportNote();
   const toast = useToast();
@@ -72,12 +82,16 @@ export function ExportDialog({ open, onClose, note, frames = [], beforeExport })
   const [result, setResult] = useState(null);
 
   const selectableFrames = frames.filter((f) => f.frameId || f.sectionId);
+  const selectableElementIds = (selectedElements ?? [])
+    .filter((el) => el && !el.isDeleted && el.type !== "frame" && typeof el.id === "string")
+    .slice(0, 200)
+    .map((el) => el.id);
 
   useEffect(() => {
     if (open) {
       const preferred = profile?.preferences?.defaultExportFormat;
       setFormat(FORMATS.some((f) => f.value === preferred) ? preferred : "png");
-      setScope("full");
+      setScope(selectableElementIds.length > 0 ? "selection" : "full");
       const firstId = selectableFrames[0]?.frameId ?? selectableFrames[0]?.sectionId ?? "";
       setFrameId(firstId);
       setError(null);
@@ -89,6 +103,12 @@ export function ExportDialog({ open, onClose, note, frames = [], beforeExport })
   const isImage = format !== "excalidraw";
   const busy = exportNote.isPending;
 
+  useEffect(() => {
+    if (isZip && scope === "selection") {
+      setScope("full");
+    }
+  }, [isZip, scope]);
+
   async function run() {
     setError(null);
     setResult(null);
@@ -98,15 +118,18 @@ export function ExportDialog({ open, onClose, note, frames = [], beforeExport })
       setError("Your latest changes couldn't be saved, so the export was not started. Try again.");
       return;
     }
-    const useFrame = !isZip && scope === "frame" && frameId;
+    const useSelection = !isZip && scope === "selection" && selectableElementIds.length > 0;
+    const useFrame = !isZip && !useSelection && scope === "frame" && frameId;
+    const resolvedScope = useSelection ? "selection" : useFrame ? "frame" : "full";
     exportNote.mutate(
       {
         id: note.id,
         format,
         theme,
         transparent: isImage && transparent,
-        scope: useFrame ? "frame" : "full",
+        scope: resolvedScope,
         ...(useFrame ? { frameId } : {}),
+        ...(useSelection ? { elementIds: selectableElementIds } : {}),
         ...(isZip ? { slideFormat } : {}),
       },
       {
@@ -119,6 +142,15 @@ export function ExportDialog({ open, onClose, note, frames = [], beforeExport })
       }
     );
   }
+
+  const activeFrameTitle = selectableFrames.find((f) => (f.frameId ?? f.sectionId) === frameId)?.title ?? "Selected slide";
+  const includedSummary = isZip
+    ? `All ${Math.max(1, frames.length)} slides rendered as ${slideFormat.toUpperCase()} (${theme}) plus manifest.json.`
+    : scope === "selection" && selectableElementIds.length > 0
+      ? `${selectableElementIds.length} selected element(s) and their bound labels rendered as ${isImage ? `${theme} ${format.toUpperCase()}` : ".excalidraw JSON"}.`
+      : scope === "frame" && selectableFrames.length > 0
+        ? `Slide "${activeFrameTitle}" rendered as ${isImage ? `${theme} ${format.toUpperCase()}` : ".excalidraw JSON"}.`
+        : `Full note canvas (${Math.max(1, frames.length)} section(s)) rendered as ${isImage ? `${theme} ${format.toUpperCase()}` : ".excalidraw JSON"}.`;
 
   return (
     <Modal
@@ -145,7 +177,7 @@ export function ExportDialog({ open, onClose, note, frames = [], beforeExport })
         <FormAlert>{error}</FormAlert>
         <RadioGroup legend="Format" name={`${name}-format`} value={format} onChange={setFormat} options={FORMATS} disabled={busy} />
 
-        {!isZip && selectableFrames.length > 0 && (
+        {!isZip && (selectableFrames.length > 0 || selectableElementIds.length > 0) && (
           <div className="space-y-3 rounded-lg border border-stone-200 bg-canvas/60 p-3">
             <RadioGroup
               legend="Include"
@@ -155,7 +187,18 @@ export function ExportDialog({ open, onClose, note, frames = [], beforeExport })
               disabled={busy}
               options={[
                 { value: "full", label: "Full scene", hint: "Entire note canvas" },
-                { value: "frame", label: "Single slide / section", hint: `${selectableFrames.length} available` },
+                ...(selectableFrames.length > 0
+                  ? [{ value: "frame", label: "Single slide / section", hint: `${selectableFrames.length} available` }]
+                  : []),
+                {
+                  value: "selection",
+                  label: "Current selection",
+                  hint:
+                    selectableElementIds.length > 0
+                      ? `${selectableElementIds.length} element${selectableElementIds.length === 1 ? "" : "s"} selected`
+                      : "Select elements on canvas first",
+                  disabled: selectableElementIds.length === 0,
+                },
               ]}
             />
             {scope === "frame" && (
@@ -207,6 +250,10 @@ export function ExportDialog({ open, onClose, note, frames = [], beforeExport })
           <input type="checkbox" checked={isImage && transparent} disabled={busy || !isImage} onChange={(e) => setTransparent(e.target.checked)} className="h-4 w-4 accent-accent-700" />
           Transparent background
         </label>
+        <div className="rounded-lg border border-stone-200 bg-canvas/60 px-3 py-2 text-xs text-stone-700" data-testid="export-included-summary">
+          <span className="font-semibold text-stone-900">What is included: </span>
+          {includedSummary}
+        </div>
         <p className="text-xs text-stone-600">
           {isZip
             ? `Exports ${Math.max(1, frames.length)} ordered slides plus manifest.json in a ZIP archive.`

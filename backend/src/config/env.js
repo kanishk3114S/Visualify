@@ -67,12 +67,16 @@ const envSchema = z.object({
   // Generation (Phase 2). The key itself is read by the worker module from the
   // process environment; config only records whether it is configured.
   GEMINI_API_KEY: z.string().optional(),
-  GEMINI_MODEL: z.string().trim().min(1).max(100).default("gemini-3.5-flash"),
+  GEMINI_MODEL: z.string().trim().min(1).max(100).default("gemini-3.5-flash-lite"),
   GENERATION_MAX_CONCURRENCY: z.coerce.number().int().min(1).max(10).default(2),
   GENERATION_PLANNER_TIMEOUT_MS: z.coerce.number().int().min(5000).max(180000).default(90000),
   GENERATION_JOB_TIMEOUT_MS: z.coerce.number().int().min(10000).max(600000).default(240000),
   EXCALIDRAW_BROWSER_PATH: z.string().optional(),
   CLI_RENDER_TIMEOUT_MS: z.coerce.number().int().min(1000).max(120000).default(30000),
+  GENERATION_LIMIT_MONTHLY: z.coerce.number().int().min(1).max(100000).default(50),
+  REDIS_URL: z.string().optional(),
+  SENTRY_DSN: z.string().optional(),
+  ADMIN_USER_IDS: z.string().optional(),
   AVATAR_MAX_BYTES: z.coerce.number().int().min(1024).max(MAX_AVATAR_BYTES_CEILING).default(2097152),
   AVATAR_SIGNED_URL_TTL_SECONDS: z.coerce.number().int().min(30).max(3600).default(300),
   SOURCE_MAX_BYTES: z.coerce.number().int().min(1024).max(MAX_SOURCE_BYTES_CEILING).default(20971520),
@@ -97,6 +101,16 @@ export function loadConfig(env = process.env) {
     throw new Error(`Invalid API environment configuration:\n${problems}`);
   }
   const e = result.data;
+  const adminUserIds = Object.freeze(
+    String(e.ADMIN_USER_IDS ?? "")
+      .split(",")
+      .map((s) => s.trim().toLowerCase())
+      .filter((s) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s))
+  );
+  const redisUrl = isConfigured(e.REDIS_URL) ? e.REDIS_URL.trim() : null;
+  if (redisUrl && !/^rediss?:\/\//i.test(redisUrl)) {
+    throw new Error("Invalid API environment configuration:\n  - REDIS_URL: must use redis:// or rediss:// protocol");
+  }
   return Object.freeze({
     nodeEnv: e.NODE_ENV,
     isProduction: e.NODE_ENV === "production",
@@ -109,11 +123,16 @@ export function loadConfig(env = process.env) {
     sourceMaxBytes: e.SOURCE_MAX_BYTES,
     sourceMaxPdfPages: e.SOURCE_MAX_PDF_PAGES,
     sourceSignedUrlTtlSeconds: e.SOURCE_SIGNED_URL_TTL_SECONDS,
+    generationLimitMonthly: e.GENERATION_LIMIT_MONTHLY,
+    redisUrl,
+    sentryDsn: isConfigured(e.SENTRY_DSN) ? e.SENTRY_DSN.trim() : null,
+    adminUserIds,
     trustProxy: e.TRUST_PROXY,
     supabaseServiceRoleKey: isConfigured(e.SUPABASE_SERVICE_ROLE_KEY) ? e.SUPABASE_SERVICE_ROLE_KEY : null,
     generation: Object.freeze({
-      // Both server secrets are required; otherwise generation endpoints return 503.
+      // Both server secrets are required for background jobs; Gemini alone powers synchronous companion.
       enabled: isConfigured(e.SUPABASE_SERVICE_ROLE_KEY) && isConfigured(e.GEMINI_API_KEY),
+      geminiConfigured: isConfigured(e.GEMINI_API_KEY),
       model: e.GEMINI_MODEL,
       maxConcurrency: e.GENERATION_MAX_CONCURRENCY,
       plannerTimeoutMs: e.GENERATION_PLANNER_TIMEOUT_MS,
@@ -123,4 +142,11 @@ export function loadConfig(env = process.env) {
     }),
     logLevel: e.LOG_LEVEL ?? (e.NODE_ENV === "test" ? "silent" : e.NODE_ENV === "production" ? "info" : "debug"),
   });
+}
+
+/** Fail CLOSED in production when service-role metering/lifecycle key is absent. */
+export function ensureProductionServiceRole(config) {
+  if (config.isProduction && !config.supabaseServiceRoleKey) {
+    throw new Error("Missing required production configuration: SUPABASE_SERVICE_ROLE_KEY is required for quota metering and server jobs.");
+  }
 }

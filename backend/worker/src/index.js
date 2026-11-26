@@ -53,6 +53,7 @@ export {
   composeLessonScene,
   extractSceneFrames,
   filterSceneToFrame,
+  filterSceneToElementIds,
   replaceSectionInScene,
   namespaceElements,
   sectionElementPrefix,

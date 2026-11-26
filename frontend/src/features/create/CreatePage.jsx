@@ -20,7 +20,7 @@ import { FormAlert, SelectField, TextAreaField, TextField } from "../../componen
 import { SegmentedControl } from "../../components/SegmentedControl.jsx";
 import { Spinner } from "../../components/Spinner.jsx";
 import { useToast } from "../../components/Toast.jsx";
-import { useProfile } from "../../hooks/useProfile.js";
+import { useProfile, useUsage } from "../../hooks/useProfile.js";
 import { useCreateGeneration } from "../../hooks/useGenerationJob.js";
 import { sourcesApi } from "../../lib/apiClient.js";
 import {
@@ -80,8 +80,10 @@ export function CreatePage() {
   const [params] = useSearchParams();
   const toast = useToast();
   const { data: profile } = useProfile();
+  const { data: usage } = useUsage();
   const create = useCreateGeneration();
   const prefs = profile?.preferences ?? {};
+  const quotaExceeded = Boolean(usage && usage.remaining <= 0);
 
   const initialMode = ["prompt", "pdf", "image"].includes(params.get("mode")) ? params.get("mode") : "prompt";
   const [inputType, setInputType] = useState(initialMode);
@@ -283,6 +285,14 @@ export function CreatePage() {
           </div>
 
           <FormAlert>{errors.root?.server?.message}</FormAlert>
+          {quotaExceeded && (
+            <div data-testid="quota-exceeded-banner">
+              <FormAlert tone="error">
+                Monthly AI quota reached ({usage.used} / {usage.limit}). Resets{" "}
+                {new Date(usage.resetsAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })} (UTC).
+              </FormAlert>
+            </div>
+          )}
 
           {inputType === "prompt" ? (
             <>
@@ -542,7 +552,7 @@ export function CreatePage() {
               ? "Your prompt is sent to our AI provider to plan the visual. Generation usually takes under a minute."
               : "Your uploaded file stays in private storage and only selected pages or sanitized images are processed."}
           </p>
-          <Button type="submit" size="lg" loading={create.isPending} disabled={uploading} loadingText="Starting…">
+          <Button type="submit" size="lg" loading={create.isPending} disabled={uploading || quotaExceeded} loadingText="Starting…">
             <Sparkles className="h-4 w-4" aria-hidden="true" />
             Generate visual
           </Button>

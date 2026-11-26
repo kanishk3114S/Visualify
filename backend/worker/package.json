@@ -14,7 +14,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "spike:local": "node src/scripts/runLocalSpike.js",
-    "spike:gemini": "node src/scripts/runGeminiSpike.js"
+    "spike:gemini": "node src/scripts/runGeminiSpike.js",
+    "smoke:docker": "node src/scripts/dockerSmoke.js"
   },
   "dependencies": {
     "@excalidraw/cli": "1.1.2",

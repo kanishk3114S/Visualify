@@ -52,3 +52,8 @@ export const profilePatchSchema = z
   })
   .partial()
   .refine((v) => Object.keys(v).length > 0, { message: "Provide at least one field to update." });
+
+export const deleteAccountSchema = z.strictObject({
+  confirmation: z.literal("DELETE MY ACCOUNT", { error: 'Type "DELETE MY ACCOUNT" to confirm.' }),
+  password: z.string().min(1, "Enter your password.").max(200).optional(),
+});

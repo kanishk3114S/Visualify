@@ -53,6 +53,7 @@ export function NotePresentPage() {
 
   useEffect(() => {
     const onKey = (e) => {
+      if (document.querySelector("dialog[open]")) return;
       const tag = e.target?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
       if (e.key === "ArrowRight" || e.key === "PageDown" || (e.key === " " && tag !== "BUTTON")) {
@@ -69,8 +70,8 @@ export function NotePresentPage() {
         toggleFullscreen();
       }
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
   }, [safeIdx, total, noteId, navigate]);
 
   if (query.isPending) {

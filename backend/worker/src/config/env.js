@@ -75,7 +75,7 @@ export function getCliRenderTimeoutMs(raw = process.env.CLI_RENDER_TIMEOUT_MS) {
 export function getGeminiConfig() {
   loadWorkerEnv();
   const apiKey = (process.env.GEMINI_API_KEY || "").trim();
-  const model = (process.env.GEMINI_MODEL || "gemini-3.5-flash").trim();
+  const model = (process.env.GEMINI_MODEL || "gemini-3.5-flash-lite").trim();
 
   if (!apiKey || apiKey === "YOUR_GEMINI_API_KEY") {
     throw new Error(

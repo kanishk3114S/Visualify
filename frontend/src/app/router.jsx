@@ -27,8 +27,9 @@ import { NoteReadPage } from "../features/notes/NoteReadPage.jsx";
 import { NoteEditorPage } from "../features/notes/NoteEditorPage.jsx";
 import { NotePresentPage } from "../features/notes/NotePresentPage.jsx";
 
-// Excalidraw (~MBs) is only downloaded when the editor preview is opened.
-const ExcalidrawSpikePage = lazy(() => import("../features/spike/ExcalidrawSpikePage.jsx"));
+// Phase 0 editor harness: gated to dev builds only so Playwright coverage
+// keeps working on the dev server without exposing /spike in production builds.
+const ExcalidrawSpikePage = import.meta.env.DEV ? lazy(() => import("../features/spike/ExcalidrawSpikePage.jsx")) : null;
 
 export const router = createBrowserRouter([
   {
@@ -81,15 +82,18 @@ export const router = createBrowserRouter([
           },
         ],
       },
-      // Phase 0 editor harness (kept for Playwright regression coverage).
-      {
-        path: "/spike/excalidraw",
-        element: (
-          <Suspense fallback={<FullPageSpinner label="Loading editor" />}>
-            <ExcalidrawSpikePage />
-          </Suspense>
-        ),
-      },
+      ...(import.meta.env.DEV && ExcalidrawSpikePage
+        ? [
+            {
+              path: "/spike/excalidraw",
+              element: (
+                <Suspense fallback={<FullPageSpinner label="Loading editor" />}>
+                  <ExcalidrawSpikePage />
+                </Suspense>
+              ),
+            },
+          ]
+        : []),
     ],
   },
 ]);
