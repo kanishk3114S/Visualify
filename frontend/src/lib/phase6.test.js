@@ -10,7 +10,8 @@ describe("Phase 6: Static security headers, CSP sha256 hash & dev-only spike gat
     const html = fs.readFileSync(path.join(ROOT, "frontend/index.html"), "utf8");
     const match = html.match(/<script>([\s\S]*?)<\/script>/);
     expect(match).toBeTruthy();
-    const expectedHash = `sha256-${crypto.createHash("sha256").update(match[1], "utf8").digest("base64")}`;
+    // Vercel serves LF; normalize CRLF checkouts on Windows so CSP hash remains cross-platform.
+    const expectedHash = `sha256-${crypto.createHash("sha256").update(match[1].replace(/\r\n/g, "\n"), "utf8").digest("base64")}`;
 
     const vercel = JSON.parse(fs.readFileSync(path.join(ROOT, "vercel.json"), "utf8"));
     const headers = vercel.headers[0].headers;
