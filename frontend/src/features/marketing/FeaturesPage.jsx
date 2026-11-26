@@ -1,5 +1,6 @@
 import { Badge } from "../../components/Layout.jsx";
 import { ButtonLink } from "../../components/Button.jsx";
+import { Reveal } from "../../motion/Reveal.jsx";
 
 // Release policy (PRD 4): only what is actually live is labelled "Available now".
 const FEATURES = [
@@ -10,9 +11,10 @@ const FEATURES = [
   { title: "Canvas editor", text: "Edit generated diagrams with bound labels and connectors in an Excalidraw-based canvas.", status: "now" },
   { title: "Autosave and versions", text: "Edits save automatically; snapshots and restorable version history.", status: "now" },
   { title: "Notes library", text: "Folders, tags, source badges, search, favourites, archive and grid/list views.", status: "now" },
-  { title: "Downloads", text: "Export notes as PNG, SVG or .excalidraw files, in light or dark.", status: "now" },
-  { title: "Dark mode", text: "Light, dark or match-your-device themes across the app.", status: "now" },
-  { title: "Learning tools", text: "Presentation mode, explain-this-element, quizzes and flashcards.", status: "later" },
+  { title: "Downloads", text: "Export full boards or selections as PNG, SVG or .excalidraw files, in light or dark.", status: "now" },
+  { title: "Dark mode", text: "Light, dark or match-your-device themes across every page.", status: "now" },
+  { title: "Learning tools", text: "Presentation mode, explain-this-element, quizzes, flashcards, revision sheets and Ask your notes.", status: "now" },
+  { title: "Sharing & workspaces", text: "Read-only share links, curated study collections and cross-note Q&A (Phase 7).", status: "later" },
 ];
 
 const STATUS = {
@@ -34,37 +36,41 @@ const VISUAL_TYPES = [
 export function FeaturesPage() {
   return (
     <div className="mx-auto max-w-4xl px-4 py-14 sm:px-6">
-      <h1 className="text-3xl font-semibold tracking-tight text-stone-900">Features</h1>
-      <p className="mt-3 max-w-2xl text-stone-600">
-        Visualify turns prompts, PDFs and images into structured visual notes. Here's what's live today and what's coming next.
-      </p>
+      <Reveal y={10}>
+        <h1 className="font-display text-3xl font-bold tracking-tight text-stone-900 sm:text-4xl">Features</h1>
+        <p className="mt-3 max-w-2xl text-stone-600">
+          Visualify turns prompts, PDFs and images into structured visual notes. Here&apos;s what&apos;s live today and what&apos;s planned next.
+        </p>
+      </Reveal>
 
-      <ul className="mt-10 divide-y divide-stone-200 rounded-xl border border-stone-200 bg-surface">
-        {FEATURES.map((f) => (
-          <li key={f.title} className="flex flex-col gap-2 px-5 py-4 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
-            <div>
-              <h2 className="text-sm font-semibold text-stone-900">{f.title}</h2>
-              <p className="mt-0.5 text-sm text-stone-600">{f.text}</p>
-            </div>
-            <Badge tone={STATUS[f.status].tone}>{STATUS[f.status].label}</Badge>
-          </li>
-        ))}
-      </ul>
+      <Reveal delay={60} y={12}>
+        <ul className="mt-10 divide-y divide-stone-200 rounded-xl border border-stone-200 bg-surface">
+          {FEATURES.map((f) => (
+            <li key={f.title} className="flex flex-col gap-2 px-5 py-4 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
+              <div>
+                <h2 className="text-sm font-semibold text-stone-900">{f.title}</h2>
+                <p className="mt-0.5 text-sm text-stone-600">{f.text}</p>
+              </div>
+              <Badge tone={STATUS[f.status].tone}>{STATUS[f.status].label}</Badge>
+            </li>
+          ))}
+        </ul>
+      </Reveal>
 
-      <section className="mt-12" aria-labelledby="formats">
-        <h2 id="formats" className="text-lg font-semibold text-stone-900">
+      <Reveal delay={100} y={12} as="section" className="mt-12" aria-labelledby="formats">
+        <h2 id="formats" className="font-display text-xl font-semibold text-stone-900">
           Supported visual types
         </h2>
         <p className="mt-2 text-sm text-stone-600">Visualify selects the best fit automatically, or you can pick one on Create.</p>
         <ul className="mt-4 grid gap-3 sm:grid-cols-2">
           {VISUAL_TYPES.map((t) => (
-            <li key={t.name} className="rounded-xl border border-stone-200 bg-surface px-4 py-3">
+            <li key={t.name} className="rounded-xl border border-stone-200 bg-surface px-4 py-3 transition-colors hover:border-stone-300">
               <p className="text-sm font-semibold text-stone-900">{t.name}</p>
               <p className="mt-0.5 text-xs text-stone-600">{t.hint}</p>
             </li>
           ))}
         </ul>
-      </section>
+      </Reveal>
 
       <div className="mt-12">
         <ButtonLink to="/signup" size="lg">

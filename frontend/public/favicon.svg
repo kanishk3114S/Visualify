@@ -1,4 +1,21 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
-  <rect width="32" height="32" rx="6" fill="#0f172a"/>
-  <path d="M9 10L16 23L23 10" stroke="#38bdf8" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" role="img" aria-label="Visualify">
+  <title>Visualify</title>
+  <style>
+    .vf-badge { fill: #0f766e; }
+    .vf-fg { fill: #ffffff; }
+    .vf-stroke { stroke: #ffffff; }
+    .vf-spark { fill: #f59e0b; }
+    @media (prefers-color-scheme: dark) {
+      .vf-badge { fill: #0d9488; stroke: #2dd4bf; stroke-width: 1; }
+      .vf-spark { fill: #fbbf24; }
+    }
+  </style>
+  <rect class="vf-badge" x="0.5" y="0.5" width="31" height="31" rx="7.5" />
+  <g>
+    <rect class="vf-fg" x="6" y="6" width="10" height="8" rx="2" />
+    <rect class="vf-fg" x="16" y="18" width="10" height="8" rx="2" />
+    <path class="vf-stroke" d="M16 10H20A2 2 0 0 1 22 12V18" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+    <path class="vf-stroke" d="M10 14V20A2 2 0 0 0 12 22H16" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+    <circle class="vf-spark" cx="23" cy="9" r="2.2" />
+  </g>
 </svg>

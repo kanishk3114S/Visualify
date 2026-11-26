@@ -21,7 +21,7 @@ export default defineConfig({
     sourcemap: false,
   },
   test: {
-    include: ["src/**/*.test.js"],
+    include: ["src/**/*.test.{js,jsx}"],
     environment: "node",
   },
 });

@@ -3,16 +3,23 @@ import { Link } from "react-router-dom";
 import clsx from "clsx";
 import { ArrowLeft } from "lucide-react";
 
+import { BrandMark } from "../brand/BrandMark.jsx";
+
 /** Wordmark used across public and app layouts. */
-export function Logo({ to = "/", className }) {
+export function Logo({ to = "/", className, variant = "default" }) {
   return (
-    <Link to={to} className={clsx("inline-flex items-center gap-2 font-semibold text-stone-900", className)}>
-      <svg viewBox="0 0 32 32" className="h-7 w-7" aria-hidden="true">
-        <rect width="32" height="32" rx="8" fill="#0f766e" />
-        <path d="M9 11h6v4H9zM17 17h6v4h-6z" fill="#fff" />
-        <path d="M15 13h3.5a1.5 1.5 0 0 1 1.5 1.5V17" fill="none" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" />
-      </svg>
-      <span className="text-lg tracking-tight">Visualify</span>
+    <Link
+      to={to}
+      viewTransition
+      className={clsx(
+        "group inline-flex items-center gap-2.5 font-semibold text-stone-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-600 focus-visible:ring-offset-2 focus-visible:ring-offset-canvas rounded-md",
+        className
+      )}
+    >
+      <span className="inline-flex transition-transform duration-200 ease-[var(--ease-spring)] group-hover:-rotate-3 group-active:scale-95">
+        <BrandMark size={28} variant={variant} decorative />
+      </span>
+      <span className="font-display text-lg tracking-tight">Visualify</span>
     </Link>
   );
 }

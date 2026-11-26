@@ -31,7 +31,9 @@
     "test:frontend": "npm --workspace=@visualify/frontend run test",
     "smoke:generation": "npm --workspace=@visualify/api run smoke:generation",
     "smoke:live-api": "npm --workspace=@visualify/api run smoke:live-api",
-    "smoke:staging": "node scripts/smokeStaging.js"
+    "smoke:staging": "node scripts/smokeStaging.js",
+    "brand:assets": "node scripts/generateBrandAssets.js",
+    "docs:screenshots": "node scripts/captureReadmeScreenshots.js"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.14.0",

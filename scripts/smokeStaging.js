@@ -69,7 +69,20 @@ async function main() {
     const res = await fetch(frontendUrl);
     assert.equal(res.status, 200, `expected 200, got ${res.status}`);
     assertSecurityHeaders(res.headers, { expectCsp: true, label: "Frontend" });
-    return `status=${res.status}`;
+    const csp = res.headers.get("content-security-policy") ?? "";
+    assert.ok(!/localhost|127\.0\.0\.1/i.test(csp), "Frontend production CSP must not include localhost");
+    const apiOrigin = new URL(apiUrl).origin;
+    assert.ok(csp.includes(apiOrigin), `Frontend CSP connect-src must permit ${apiOrigin}`);
+    return `status=${res.status}, cspAllows=${apiOrigin}`;
+  });
+
+  await checkStep("CORS allows frontend origin preflight & GET", async () => {
+    const res = await fetch(`${apiUrl}/api/v1/health`, {
+      headers: { Origin: frontendUrl },
+    });
+    assert.equal(res.status, 200, `expected 200 for allowed frontend origin, got ${res.status}`);
+    assert.equal(res.headers.get("access-control-allow-origin"), frontendUrl);
+    return `reqId=${res.headers.get("x-request-id") ?? "n/a"}`;
   });
 
   await checkStep("CORS rejects foreign origin", async () => {

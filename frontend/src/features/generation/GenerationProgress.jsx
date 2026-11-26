@@ -78,7 +78,10 @@ export function GenerationProgress({ status, progress, prompt, inputType = "prom
           aria-valuetext={`${stageLabel(status, inputType)}, ${progress} percent`}
           className="h-2 w-full overflow-hidden rounded-full bg-stone-200"
         >
-          <div className="h-full rounded-full bg-accent-700 transition-[width] duration-500 ease-out" style={{ width: `${progress}%` }} />
+          <div
+            className="h-full rounded-full bg-accent-700 transition-[width] duration-500 ease-[var(--ease-out)]"
+            style={{ width: `${progress}%` }}
+          />
         </div>
       </div>
 
@@ -87,16 +90,18 @@ export function GenerationProgress({ status, progress, prompt, inputType = "prom
           const state = isCancelling ? (stageState(s.key, status, stages) === "done" ? "done" : "pending") : stageState(s.key, status, stages);
           const Icon = state === "done" ? Check : state === "active" ? Loader2 : Circle;
           return (
-            <li key={s.key} className="flex items-center gap-3 text-sm" data-state={state}>
-              <Icon
-                className={clsx(
-                  "h-4 w-4 shrink-0",
-                  state === "done" && "text-accent-700",
-                  state === "active" && "animate-spin text-accent-700 motion-reduce:animate-none",
-                  state === "pending" && "text-stone-400"
-                )}
-                aria-hidden="true"
-              />
+            <li key={s.key} className="flex items-center gap-3 text-sm transition-colors duration-150" data-state={state}>
+              <span className={clsx("inline-flex items-center justify-center rounded-full", state === "active" && "animate-calm-pulse motion-reduce:animate-none")}>
+                <Icon
+                  className={clsx(
+                    "h-4 w-4 shrink-0",
+                    state === "done" && "text-accent-700",
+                    state === "active" && "animate-spin text-accent-700 motion-reduce:animate-none",
+                    state === "pending" && "text-stone-400"
+                  )}
+                  aria-hidden="true"
+                />
+              </span>
               <span className={state === "pending" ? "text-stone-500" : "text-stone-900"}>{s.label}</span>
               <span className="sr-only">{state === "done" ? "(done)" : state === "active" ? "(in progress)" : "(waiting)"}</span>
             </li>

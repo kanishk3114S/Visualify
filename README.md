@@ -1,575 +1,288 @@
 <div align="center">
 
-<img src="frontend/public/favicon.svg" alt="Visualify logo" width="72" height="72" />
+<img src="frontend/public/favicon.svg" alt="Visualify logo" width="64" height="64" />
 
 # Visualify
 
-### Turn any study topic into an editable visual explanation.
+### Turn study topics, PDFs, and handwritten notes into editable visual diagrams and interactive study kits.
 
-Describe a concept, and Visualify plans the right diagram, draws it as an **editable Excalidraw canvas**, and explains it section by section.
+Describe a concept, select PDF page ranges, or upload a photo — Visualify plans structured visual sections, compiles editable **Excalidraw** scenes, and builds synced quizzes, flashcards, revision sheets, and note Q&A.
 
 <p>
   <img alt="Node.js 22+" src="https://img.shields.io/badge/Node.js-22%2B-339933?logo=nodedotjs&logoColor=white" />
-  <img alt="React 18.3" src="https://img.shields.io/badge/React-18.3-61DAFB?logo=react&logoColor=black" />
-  <img alt="Vite 8" src="https://img.shields.io/badge/Vite-8-646CFF?logo=vite&logoColor=white" />
-  <img alt="Express 5" src="https://img.shields.io/badge/Express-5-000000?logo=express&logoColor=white" />
-  <img alt="Supabase" src="https://img.shields.io/badge/Supabase-Auth%20%7C%20Postgres%20%7C%20Storage-3FCF8E?logo=supabase&logoColor=white" />
-  <img alt="Gemini 3.5 Flash-Lite" src="https://img.shields.io/badge/Gemini-3.5%20Flash--Lite-8E75B2?logo=googlegemini&logoColor=white" />
-  <img alt="Excalidraw 0.18" src="https://img.shields.io/badge/Excalidraw-0.18-6965DB" />
-</p>
-<p>
-  <img alt="Phase 6.5 verified" src="https://img.shields.io/badge/status-Phase%206.5%20ready%20(awaiting%200010%20live)-0f766e" />
-  <img alt="JavaScript ESM" src="https://img.shields.io/badge/language-JavaScript%20(ESM)-F7DF1E?logo=javascript&logoColor=black" />
-  <img alt="RLS verified" src="https://img.shields.io/badge/RLS-68%20SQL%20%7C%2021%20live-0f766e" />
-  <img alt="Playwright & Axe" src="https://img.shields.io/badge/E2E%20%2B%20WCAG%20AA-79%20passed-0f766e" />
+  <img alt="React 18.3.1" src="https://img.shields.io/badge/React-18.3.1-61DAFB?logo=react&logoColor=black" />
+  <img alt="Vite 8.3.8" src="https://img.shields.io/badge/Vite-8.3.8-646CFF?logo=vite&logoColor=white" />
+  <img alt="Express 5" src="https://img.shields.io/badge/Express-5.2-000000?logo=express&logoColor=white" />
+  <img alt="Gemini 3.5 Flash-Lite" src="https://img.shields.io/badge/Gemini-3.5%20Flash--Lite-0f766e" />
+  <img alt="Excalidraw 0.18.1" src="https://img.shields.io/badge/Excalidraw-0.18.1-4f46e5" />
 </p>
 
-[**Product tour**](#-product-tour) · [**Diagrams**](#-rendered-diagrams) · [**How it works**](#-how-it-works) · [**Quick start**](#-quick-start) · [**API**](#-api-reference) · [**Testing**](#-testing) · [**Roadmap**](#-roadmap)
+[**Tour**](#-product-tour) · [**Architecture**](#-architecture) · [**Quick Start**](#-quick-start) · [**Environment**](#-environment-variables) · [**Design System**](docs/design/DESIGN.md) · [**Deployment**](#-deployment--security)
 
 </div>
 
 ---
 
-## 🖼️ Product Tour
+## ✨ Product Tour
 
-<table>
-  <tr>
-    <td colspan="2"><img src="docs/assets/workspace-dark.png" alt="Visualify Dark Mode Excalidraw Workspace with Outline, Frame Controls, Focus, Section Regeneration, and Study Assistant" /></td>
-  </tr>
-  <tr>
-    <td colspan="2" align="center"><b>Interactive Excalidraw Workspace (Dark Mode)</b><br/><sub>Section outline · multi-frame canvas · Focus & non-destructive section regeneration · Study Assistant</sub></td>
-  </tr>
-  <tr>
-    <td width="50%"><img src="docs/assets/landing.png" alt="Visualify landing page with interactive multi-diagram sequence/flowchart/mindmap/comparison switcher" /></td>
-    <td width="50%"><img src="docs/assets/create.png" alt="Create page supporting Topic prompts, PDF documents with page selection, and handwritten note images" /></td>
-  </tr>
-  <tr>
-    <td align="center"><b>1. Interactive Landing Showcase</b><br/><sub>Live diagram preview & theme switcher</sub></td>
-    <td align="center"><b>2. Prompts, PDFs & Note Photos</b><br/><sub>Up to 20 MB · PDF page ranges · EXIF-safe images</sub></td>
-  </tr>
-  <tr>
-    <td width="50%"><img src="docs/assets/study-quiz.png" alt="Study Companion Quick Quiz view with persistent score, difficulty levels, Flashcards, Revision Sheet, and Ask This Note tabs" /></td>
-    <td width="50%"><img src="docs/assets/present-dark.png" alt="Full-bleed multi-frame Presentation Mode with slide filmstrip and speaker notes" /></td>
-  </tr>
-  <tr>
-    <td align="center"><b>3. Study Companion Suite</b><br/><sub>Quick Quiz · Flashcards · Revision Sheet · Ask Note</sub></td>
-    <td align="center"><b>4. Multi-Frame Presentation Mode</b><br/><sub>Keyboard shortcuts · slide filmstrip · speaker notes</sub></td>
-  </tr>
-  <tr>
-    <td width="65%"><img src="docs/assets/dashboard-dark.png" alt="Authenticated Dashboard showing monthly quota meter, recent notes, and library summary in Dark Mode" /></td>
-    <td width="35%" align="center"><img src="docs/assets/mobile-study-dark.png" alt="Mobile Dark Mode view of Study Companion Quick Quiz with accessible touch targets" width="240" /></td>
-  </tr>
-  <tr>
-    <td align="center"><b>5. Dashboard & Fail-Closed Quota Meter</b><br/><sub>Real-time monthly credits with auto-refunds on 5xx</sub></td>
-    <td align="center"><b>6. Mobile-First Responsive UI</b><br/><sub>Zero horizontal overflow · 44px touch targets</sub></td>
-  </tr>
-</table>
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/hero-dark.png" />
+  <source media="(prefers-color-scheme: light)" srcset="docs/assets/hero-light.png" />
+  <img src="docs/assets/hero-light.png" alt="Visualify landing page featuring interactive Sequence, Flowchart, Mind Map, and Comparison showcase" />
+</picture>
 
----
-
-## 🎨 Rendered Diagrams
-
-Every diagram below is generated server-side into **editable Excalidraw scenes** (`@excalidraw/cli` + Chromium for Mermaid types; deterministic container-bound geometry for Mind Maps & Comparisons) with bound text, connectors, and PNG/SVG/JSON export:
-
-<table>
-  <tr>
-    <td width="50%" align="center"><img src="docs/assets/diagram-sequence.png" alt="TCP Three-Way Handshake sequence diagram rendered via Visualify Excalidraw pipeline" /></td>
-    <td width="50%" align="center"><img src="docs/assets/diagram-comparison.png" alt="SQL vs NoSQL side-by-side comparison diagram with Key Takeaway footer" /></td>
-  </tr>
-  <tr>
-    <td align="center"><b>Sequence Diagram</b> (<code>sequenceDiagram</code> → Excalidraw)</td>
-    <td align="center"><b>Comparison Matrix</b> (Deterministic Grid + Key Takeaway)</td>
-  </tr>
-  <tr>
-    <td width="65%" align="center"><img src="docs/assets/diagram-mindmap.png" alt="Operating Systems radial mind map with teal, indigo, and amber color-coded branches" /></td>
-    <td width="35%" align="center"><img src="docs/assets/diagram-er.png" alt="User and Note Entity-Relationship diagram with crow's-foot cardinality" width="220" /></td>
-  </tr>
-  <tr>
-    <td align="center"><b>Mind Map</b> (Central Hero + Color-Coded Branches)</td>
-    <td align="center"><b>ER Diagram</b> (Typed Attributes + Cardinality)</td>
-  </tr>
-</table>
-
-> [!NOTE]
-> **Status: Phase 6.5 (Launch Close-Out, Single-Image Split Roles, 30-Fixture AI Quality Eval, Quota Refunds & Zero-PII Launch Telemetry) is implemented and verified**, with offline suites (`95` worker, `242` API, `68` PGlite SQL, `75` frontend unit), `79` Playwright E2E + Axe WCAG 2 AA tests, production bundle build (`0` `.map` files), lint (`126` JS files), live `eval:quality` (`30/30` on `gemini-3.5-flash-lite`), and `dockerSmoke.js` passing.
-> Live RLS checks pass `21/22` (`0009` verified live) with `1` skipped awaiting owner-applied [`supabase/migrations/0010_launch_closeout.sql`](supabase/migrations/0010_launch_closeout.sql) (`npm run test:rls:live`). Phase 7 expansion remains intentionally gated per [`PRD.MD` §17](PRD.MD) until live telemetry validates demand.
+| Interactive Excalidraw Workspace (Dark) | Active Recall Study Kit (Light) | Multi-Frame Present Mode (Dark) |
+| :--- | :--- | :--- |
+| <img src="docs/assets/workspace-dark.png" alt="Editable Excalidraw workspace with section outline and frame navigation" /> | <img src="docs/assets/study-light.png" alt="Visualify note reader and active recall study companion view" /> | <img src="docs/assets/present-dark.png" alt="Full-bleed presentation mode with slide filmstrip and speaker notes" /> |
 
 <details>
-<summary><b>📑 Table of contents</b></summary>
+<summary><b>More screenshots: Dashboard, Create flow, Mobile viewport, Rendered diagram families &amp; Brand mark strip</b></summary>
 
-- [What it does today](#-what-it-does-today)
-- [How it works](#-how-it-works)
-- [Design decisions](#-design-decisions)
-- [Tech stack](#-tech-stack)
-- [Quick start](#-quick-start)
-- [Environment variables](#-environment-variables)
-- [Scripts](#-scripts)
-- [Testing](#-testing)
-- [API reference](#-api-reference)
-- [Security](#-security)
-- [Project structure](#-project-structure)
-- [Roadmap](#-roadmap)
-- [Documentation](#-documentation)
-- [Contributing](#-contributing)
+| Create (Topic / PDF / Image) | Authenticated Dashboard (Dark) | Mobile Hero (`390px`) |
+| :--- | :--- | :--- |
+| <img src="docs/assets/create.png" alt="Create visual notes page with Prompt, PDF page-range selector, and Image upload" /> | <img src="docs/assets/dashboard-dark.png" alt="Dashboard quota usage bar and saved notes summary in dark mode" /> | <img src="docs/assets/hero-mobile-dark.png" alt="Responsive mobile dark hero view at 390px width" width="240" /> |
+
+| Mind Map | Sequence Diagram | ER Diagram | Comparison Matrix |
+| :--- | :--- | :--- | :--- |
+| <img src="docs/assets/diagram-mindmap.png" alt="Mind map generated by Visualify worker" /> | <img src="docs/assets/diagram-sequence.png" alt="Sequence diagram generated by Visualify worker" /> | <img src="docs/assets/diagram-er.png" alt="Entity-relationship diagram generated by Visualify worker" /> | <img src="docs/assets/diagram-comparison.png" alt="Side-by-side comparison generated by Visualify worker" /> |
+
+<p align="center">
+  <img src="docs/assets/brand-strip.png" alt="Visualify BrandMark crisp at 16px, 24px, 32px, and 64px in light and dark modes" width="640" />
+</p>
 
 </details>
 
 ---
 
-## ✨ What it does today
+## 🧩 Core Capabilities
 
-| | Feature | Details |
-|:-:|:--|:--|
-| 🧠 | **Prompt, PDF & Image → learning plan** | Gemini returns a *structured, schema-validated* plan (title, objectives, sections, key concepts, relationships, explanations, `sourceRefs`), from prompts, PDF page selections (digital or scanned), or EXIF-sanitized note images. |
-| 🎨 | **7 diagram types + bound Excalidraw scenes** | Flowchart · Sequence · Timeline · ER · Class (Mermaid → Excalidraw CLI with semantic palette enrichment) and Mind map · Comparison (deterministic container-bound & connector-bound scenes across 3 visual style presets). |
-| ✏️ | **Editable canvas, autosave & section regen** | Results open in an embedded Excalidraw editor with genuine section `frame` groups; save to library, edit with debounced autosave (`note_drafts`), explain any canvas selection (`Study Assistant`), and non-destructively regenerate an individual section (`Regenerate`). |
-| 🎞️ | **Presentation mode** | Full-bleed `/app/notes/:noteId/present` slide view over ordered scene frames with keyboard shortcuts (`ArrowRight`/`Space`/`PageDown`, `ArrowLeft`/`PageUp`, `N` notes, `F` fullscreen, `Escape`), clickable filmstrip, and smooth camera transitions. |
-| 🎓 | **Interactive Study Companion** | Per-note study suite backed by Postgres (`note_quizzes`, `note_flashcards`, `note_revision_guides`) with **Quick Quiz** (scoring + persistent attempts), **Flashcards** (3D flip + mastery tracking), **Revision Sheet** (one-page cheat sheet), and **Ask This Note** (Q&A grounded in section/page citations). |
-| 🗂️ | **Notes library & folders** | Grid/list views, nested folders (with cycle & depth guards), search, tag filtering, favorites, archive, duplicate, rename, move, and delete. |
-| 🕰️ | **Version history** | Immutable snapshots (`note_versions`), live canvas preview of any prior version, and non-destructive restore that preserves unsnapshotted drafts first. |
-| 📦 | **Exports** | Export Full scene, single frame (`scope: "frame"`), or multi-slide ordered archive (`.zip` with PNG/SVG slides + `manifest.json`), plus editable `.excalidraw` JSON served via signed URLs. |
-| 🌗 | **Light / Dark / System theme** | Instant theme switcher synced to `localStorage` and profile preferences, WCAG 2 AA verified across public and app routes. |
-| 📡 | **Live progress** | Server-Sent Events over `fetch` with the Bearer header, plus automatic polling fallback. Cancel and retry are built in. |
-| 🧩 | **Partial success** | If one section's diagram fails, you still get the rest plus a clear warning; the job fails only if nothing can be drawn. |
-| 🔐 | **Accounts** | Email/password with verification, Google OAuth, password recovery, profile, private avatar uploads. |
-| 📱 | **Responsive** | Three panels from 1200 px, tabs on tablet, and a phone layout that stays usable. Keyboard and screen-reader friendly. |
+- **Multi-Source Generation**: Generate multi-section visuals from free-text prompts (`<= 4,000` chars), digital/scanned PDFs (`<= 20 MB`, explicit page-range selection up to `100` pages), or JPEG/PNG/WebP photos (auto-oriented with EXIF stripped).
+- **7 Structured Visual Families**: Auto-selected or pinned per section — **Flowchart**, **Sequence**, **Mind Map**, **Comparison**, **Timeline**, **ER Diagram**, and **Class Diagram**.
+- **True Canvas Editing**: Opens directly in `@excalidraw/excalidraw` with bound text containers, section outline focusing, selective section regeneration, manual autosave with `409` optimistic concurrency control, and restorable snapshots.
+- **Learning Companion & Presentation**: One-click full-screen Presentation Mode (keyboard navigation + speaker notes), Explain Selected Shapes, difficulty-filtered Quizzes, active-recall Flashcards, condensed Revision Sheets, and source-grounded Ask Your Note Q&A.
+- **Full & Selection Exports**: Export whole boards or specific selected elements to **PNG**, **SVG**, **`.excalidraw`**, or **Markdown/ZIP** bundles in light or dark canvas modes.
+- **Library & Isolation**: Nested folders, tags, favorites, archive filtering, sort controls, monthly metered quotas, self-serve account deletion, and PostgreSQL **Row-Level Security** on every table and private storage bucket.
 
 ---
 
-## 🧭 How it works
+## 🏗 Architecture
 
-Visualify **separates thinking from drawing**: the model decides *what to teach and which diagram fits*; deterministic code decides *where every shape goes*.
+Visualify deploys cleanly from one Node container image with two stateless process roles (`PROCESS_ROLE=api` and `PROCESS_ROLE=worker`) backed by Supabase Auth/Postgres/Storage and Redis/BullMQ.
 
 ```mermaid
 flowchart LR
-    U(["👤 Learner"]) -->|prompt / PDF / image| FE["React SPA<br/>Vite · Tailwind · TanStack Query"]
-    FE -->|"REST + SSE<br/>Bearer JWT"| API["Express API (PROCESS_ROLE=api)<br/>helmet · CORS · rate limits · Zod"]
-    FE -->|Auth SDK| AUTH[("Supabase Auth")]
-    API -->|verify JWT| AUTH
-    API -->|"enqueue + pub/sub"| Q["BullMQ + Redis<br/>or InProcessQueue (dev)"]
-    Q --> W["Worker Role (PROCESS_ROLE=worker)<br/>Pipeline + RenderSemaphore"]
-    W -->|"untrusted-input<br/>delimited prompt"| G["Gemini 3.5 Flash-Lite<br/>(+ fallback chain)"]
-    W --> R{"Visual type<br/>router"}
-    R -->|"flowchart · sequence · timeline<br/>er_diagram · class_diagram"| M["Mermaid → Excalidraw CLI<br/>headless Chromium"]
-    R -->|"mindmap · comparison"| D["Direct scene adapter"]
-    M --> C["Multi-Frame Composer<br/>+ validation"]
-    D --> C
-    C -->|"service-role write<br/>usage & product_events"| DB[("Supabase Postgres<br/>RLS · Storage")]
-    W -. Redis SSE .-> API
-    API -. SSE .-> FE
+  SPA["React 18 SPA (Vercel)"] -->|"HTTPS + Bearer JWT"| API["Express 5 API (PROCESS_ROLE=api)"]
+  API -->|"RLS-scoped queries + Signed URLs"| Supa[("Supabase Auth / Postgres / Storage")]
+  API -->|"SSE Progress Stream"| SPA
+  API -->|"Enqueue Job"| Redis[("Redis / BullMQ")]
+  Redis -->|"Consume Job"| Worker["Generation Worker (PROCESS_ROLE=worker)"]
+  Worker -->|"Plan & Study LLM Calls"| Gemini["Google Gemini API"]
+  Worker -->|"Headless Layout Render"| Chrome["Excalidraw CLI / Chromium"]
+  Worker -->|"Service-Role Result Write"| Supa
 ```
-
-<details>
-<summary><b>🔁 Lifecycle of one generation request</b> (sequence diagram)</summary>
 
 ```mermaid
 sequenceDiagram
-    autonumber
-    participant B as Browser
-    participant A as Express API
-    participant S as Supabase
-    participant W as Pipeline (in-process)
-    participant G as Gemini
+  actor Learner
+  participant SPA as React SPA
+  participant API as Express API
+  participant Queue as BullMQ / Redis
+  participant Worker as Worker Process
+  participant DB as Supabase Postgres
 
-    B->>A: POST /api/v1/generations (Bearer JWT)
-    A->>S: verify token, insert job (1 active per user)
-    A-->>B: 202 { jobId, status: "queued" }
-    B->>A: GET /generations/:id/events (fetch + Bearer)
-    A-->>B: event: snapshot
-    W->>S: status = validating → planning
-    A-->>B: event: stage / progress
-    W->>G: structured plan request (prompt in untrusted delimiters)
-    G-->>W: learning plan JSON
-    W->>W: Zod validate → compose each section → merge → validate scene
-    W->>S: completed + plan + scene (conditional update)
-    A-->>B: event: completed
-    B->>A: GET /generations/:id
-    A-->>B: plan + sceneJson → Excalidraw workspace
+  Learner->>SPA: Submit topic or PDF page range
+  SPA->>API: POST /api/v1/generations (JWT)
+  API->>DB: Reserve monthly quota + insert job (queued)
+  API->>Queue: Enqueue generation job
+  API-->>SPA: 202 Accepted (jobId)
+  SPA->>API: GET /api/v1/generations/:id/events (SSE)
+  Queue->>Worker: Dequeue job
+  Worker->>Worker: Plan sections + compile Excalidraw scene
+  Worker->>DB: Persist scene + mark job completed (or refund quota on failure)
+  API-->>SPA: SSE stage events -> completed
 ```
-
-</details>
-
-<details>
-<summary><b>🚦 Job state machine</b></summary>
-
-```mermaid
-stateDiagram-v2
-    [*] --> queued
-    queued --> validating
-    validating --> planning
-    planning --> composing
-    composing --> persisting
-    persisting --> completed
-    queued --> cancelled : cancel (immediate)
-    validating --> cancelling : cancel
-    planning --> cancelling : cancel
-    composing --> cancelling : cancel
-    persisting --> cancelling : cancel
-    cancelling --> cancelled
-    validating --> failed
-    planning --> failed
-    composing --> failed
-    failed --> queued : retry (new linked job)
-    cancelled --> queued : retry (new linked job)
-    completed --> [*]
-```
-
-Progress is a stage-weighted UX signal that **never moves backwards**. Every runner write is conditional on the current status, so a cancel can never be overwritten by "completed".
-
-</details>
 
 ---
 
-## 🧠 Design decisions
+## 🛠 Pinned Tech Stack
 
-<details>
-<summary><b>Why does the model return a plan instead of a drawing?</b></summary>
+All workspace dependencies are strictly version-pinned in `package.json` manifests (verified by `npm run lint`):
 
-Free-form canvas JSON from an LLM is fragile: overlapping shapes, dangling arrows, invalid IDs. Visualify asks Gemini for a compact **learning plan** validated with Zod (bounded node counts, unique IDs, valid references), then **deterministic adapters** build the scene. Output quality becomes testable and repeatable.
-
-</details>
-
-<details>
-<summary><b>How is prompt injection handled?</b></summary>
-
-The learner's text is wrapped in `<untrusted_user_input>` delimiters; look-alike delimiters inside the text are neutralised so it can't "close" the block. The system instruction treats that block strictly as data. Model output is validated twice (worker + API) and never rendered unvalidated.
-
-</details>
-
-<details>
-<summary><b>Why can't users write their own job results?</b></summary>
-
-RLS lets users **create, read and cancel** their own jobs, but status, plan and scene are written only by the server runner. Phase 3 will turn completed jobs into saved notes, so a client must never be able to plant a fake "completed" job with an arbitrary scene. This is verified by SQL tests and live RLS tests.
-
-</details>
-
-<details>
-<summary><b>Why an in-process queue instead of Redis?</b></summary>
-
-It keeps local development dependency-free. The service depends only on an `enqueue / cancel / isTracked` interface, so **BullMQ can replace it** without touching routes or the pipeline. Jobs orphaned by a crash are marked `INTERRUPTED` on boot.
-
-> [!IMPORTANT]
-> The in-process runner assumes **a single API instance**. Add BullMQ/Redis before scaling horizontally.
-
-</details>
+| Layer | Technologies |
+| :--- | :--- |
+| **Frontend** | `react@18.3.1`, `vite@8.3.8`, `tailwindcss@4.3.5`, `react-router-dom@7.18.5`, `@excalidraw/excalidraw@0.18.1`, `@tanstack/react-query@5.107.1`, `lucide-react@1.71.0`, `zod@4.6.7` |
+| **Backend API** | Node `>=22`, `express@5.2.1`, `@supabase/supabase-js@2.119.0`, `bullmq@5.85.0`, `ioredis@5.10.1`, `helmet@8.1.0`, `pino@10.3.1`, `@sentry/node@10.48.0`, `zod@4.3.6` |
+| **Worker Engine** | `@google/genai@1.53.0`, `@excalidraw/cli@0.0.1-beta.5`, `mermaid@11.14.0`, `pdf-parse@2.4.5`, `sharp@0.35.5`, `@sentry/node@10.48.0` |
+| **Testing & QA** | `vitest@5.1.1`, `@electric-sql/pglite@1.0.2`, `supertest@7.3.0`, `@playwright/test@1.65.1`, `@axe-core/playwright@4.14.0` |
 
 ---
 
-## 🧰 Tech stack
+## ⚡ Quick Start
 
-| Layer | Technology |
-|:--|:--|
-| **Frontend** | React `18.3.1` (pinned for Excalidraw) · Vite `8` · Tailwind CSS `4` · React Router `7` · TanStack Query `5` · React Hook Form + Zod · lucide-react |
-| **Canvas** | `@excalidraw/excalidraw` `0.18.1` (lazy-loaded) |
-| **API** | Node.js `22+` · Express `5` · helmet · cors · express-rate-limit · multer · sharp · file-type · pino |
-| **AI** | Gemini via `@google/genai` · structured JSON output · Zod `4` |
-| **Diagrams** | Mermaid → `@excalidraw/cli` with headless Chrome/Chromium/Edge |
-| **Data** | Supabase Auth · Postgres with RLS · private Storage |
-| **Testing** | Vitest · Supertest · PGlite (real Postgres in WASM) · Playwright |
-
----
-
-## 🚀 Quick start
-
-> [!TIP]
-> Everything except live generation works **offline**: `npm install && npm test` needs no keys.
-
-### 1. Prerequisites
-
-- **Node.js 22+**
-- **Chrome, Chromium or Edge** (used headlessly to convert Mermaid diagrams)
-- A **Supabase** project and a **Gemini API key** (for the full app)
-
-### 2. Install
-
-```bash
-git clone https://github.com/kanishk3114S/Visualizer.git
-cd Visualizer
-npm install
-```
-
-### 3. Configure environment
+### 1. Install dependencies & configure templates
 
 <details open>
 <summary><b>PowerShell (Windows)</b></summary>
 
 ```powershell
-Copy-Item frontend\.env.example frontend\.env.local
-Copy-Item backend\.env.example  backend\.env.local
-Copy-Item backend\worker\.env.example backend\worker\.env.local
+git clone https://github.com/your-org/Visualizer.git
+cd Visualizer
+npm ci
+
+Copy-Item frontend/.env.example frontend/.env.local
+Copy-Item backend/.env.example backend/.env.local
+Copy-Item backend/worker/.env.example backend/worker/.env.local
 ```
 
 </details>
 
 <details>
-<summary><b>Bash (macOS / Linux / WSL)</b></summary>
+<summary><b>Bash (macOS / Linux)</b></summary>
 
 ```bash
+git clone https://github.com/your-org/Visualizer.git
+cd Visualizer
+npm ci
+
 cp frontend/.env.example frontend/.env.local
-cp backend/.env.example  backend/.env.local
+cp backend/.env.example backend/.env.local
 cp backend/worker/.env.example backend/worker/.env.local
 ```
 
 </details>
 
-Fill in the values (see [Environment variables](#-environment-variables)). `.env.local` files are git-ignored. **Never commit them.**
+### 2. Apply Supabase migrations & run local dev
 
-### 4. Set up Supabase
-
-Run the migrations **in order** in the Supabase SQL Editor (or with `supabase db push`):
-
-```text
-supabase/migrations/0001_profiles_and_rls.sql
-supabase/migrations/0002_avatars_storage_bucket.sql
-supabase/migrations/0003_generation_jobs.sql
-supabase/migrations/0004_folders_notes_versions_exports.sql
-supabase/migrations/0005_note_storage_buckets.sql
-supabase/migrations/0006_source_files.sql
-supabase/migrations/0007_source_files_bucket.sql
-supabase/migrations/0008_learning_companion.sql
-supabase/migrations/0009_phase6_hardening.sql
-supabase/migrations/0010_launch_closeout.sql
-```
-
-Then configure the Auth redirect URLs and Google OAuth: step-by-step in [`supabase/README.md`](supabase/README.md).
-
-### 5. Run it
+Run Supabase SQL migrations `supabase/migrations/0001` through `0010` cleanly against your project (see [supabase/README.md](supabase/README.md)), populate `.env.local` keys, then start both servers together:
 
 ```bash
-npm run dev:api        # Express API  → http://localhost:5000
-npm run dev:frontend   # React app    → http://localhost:5173
+npm run dev
 ```
 
-Sign up, open **Create**, pick an example and hit **Generate visual**. 🎉
-
----
-
-## 🔑 Environment variables
-
-<details>
-<summary><b>Show all variables</b></summary>
-
-| Variable | File | Secret? | Purpose |
-|:--|:--|:-:|:--|
-| `VITE_SUPABASE_URL` | `frontend/.env.local` | — | Supabase project URL |
-| `VITE_SUPABASE_PUBLISHABLE_KEY` | `frontend/.env.local` | — | Publishable key (safe in the browser *because* RLS is enforced) |
-| `VITE_API_BASE_URL` | `frontend/.env.local` | — | API origin, e.g. `http://localhost:5000` |
-| `SUPABASE_URL` / `SUPABASE_PUBLISHABLE_KEY` | `backend/.env.local` | — | Token verification and RLS-scoped access |
-| `SUPABASE_SERVICE_ROLE_KEY` | `backend/.env.local` | 🔒 | **Server only.** Used by the job runner to write results |
-| `FRONTEND_ORIGIN` | `backend/.env.local` | — | Exact CORS allowlist (comma-separated, never `*`) |
-| `GEMINI_API_KEY` | `backend/.env.local` or `backend/worker/.env.local` | 🔒 | **Server only.** Model access |
-| `GEMINI_MODEL` | same | — | Default `gemini-3.5-flash-lite` (evidence-selected over `gemini-3.5-flash` via 30-fixture eval) |
-| `GEMINI_FALLBACK_MODELS` | same | — | Comma-separated failover models (`<= 3`, default `gemini-2.5-flash,gemini-3.5-flash`) |
-| `PROCESS_ROLE` | `backend/.env.local` | — | `all` (local dev), `api` (HTTP + SSE), or `worker` (BullMQ consumer + `/healthz` `/readyz`) |
-| `WORKER_HEALTH_PORT` · `SHUTDOWN_GRACE_MS` | `backend/.env.local` | — | Worker health HTTP port (`4001`) and graceful `SIGTERM` drain timeout (`25000` ms) |
-| `GENERATION_MAX_CONCURRENCY` · `RENDER_CONCURRENCY` | `backend/.env.local` | — | Jobs running at once (default `2`) and process-wide `@excalidraw/cli` semaphore (`1..8`, default `2`) |
-| `GENERATION_PLANNER_TIMEOUT_MS` / `GENERATION_JOB_TIMEOUT_MS` | `backend/.env.local` | — | Per-call and whole-job limits |
-| `EXCALIDRAW_BROWSER_PATH` | `backend/worker/.env.local` | — | Browser for Mermaid conversion (auto-detected if unset) |
-| `AVATAR_MAX_BYTES` / `AVATAR_SIGNED_URL_TTL_SECONDS` | `backend/.env.local` | — | Avatar limits |
-| `GENERATION_LIMIT_MONTHLY` | `backend/.env.local` | — | Monthly billable action quota per user (default `50`; provider/system errors auto-refund via `refund_usage_event`) |
-| `REDIS_URL` | `backend/.env.local` | — | Redis URL (`BullMQGenerationQueue` + `RedisStore` rate limits; required in production split `api`/`worker` roles) |
-| `SENTRY_DSN` / `VITE_SENTRY_DSN` | `backend/.env.local` / `frontend/.env.local` | — | Optional PII-scrubbed Sentry error tracking |
-| `ADMIN_USER_IDS` | `backend/.env.local` | — | Optional comma-separated user UUIDs for `/api/v1/admin/jobs/:jobId` and `/api/v1/admin/metrics` |
-
-Generation returns `503 GENERATION_UNAVAILABLE` until **both** `SUPABASE_SERVICE_ROLE_KEY` and `GEMINI_API_KEY` are set.
-
-</details>
-
-> [!CAUTION]
-> Never put a secret in a `VITE_*` variable. Vite bundles every `VITE_*` value into the browser build.
-
----
-
-## 📜 Scripts
-
-| Command | What it does |
-|:--|:--|
-| `npm run dev` | Start both the Express API and Vite frontend together in one terminal |
-| `npm run dev:api` | Start the Express API with file watching |
-| `npm run dev:frontend` | Start the Vite dev server |
-| `npm run build:frontend` | Production build (no source maps) |
-| `npm test` | **All offline suites**: worker (`95`) → API (`242`) → SQL/RLS (`68`) → frontend unit (`75`) |
-| `npm run lint` | Workspace syntax check (`126` JS files), pinned deps & frontend secret boundaries |
-| `npm run test:worker` · `test:api` · `test:frontend` | Individual suites |
-| `npm run test:rls:sql` | Migrations + RLS on real Postgres (PGlite), no credentials needed |
-| `npm run test:e2e` | Playwright browser tests (`79` specs + Axe + tablet/motion checks, mocked API) |
-| `npm run test:rls:live` | Cross-user RLS checks against your **live** dev project (`21/22`, `1` awaiting `0010`) |
-| `npm run test:load` | Autocannon HTTP load harness against Express API (`0%` error rate gate) |
-| `npm run eval:quality` | Run the 30-fixture AI quality evaluation harness against Gemini model(s) |
-| `npm run smoke:generation` | Real Gemini + CLI pipeline, in-memory store (1 model call) |
-| `npm run smoke:staging` | Unauthenticated readiness, auth fail-closed (`401`), and CORS smoke check against staging |
-| `npm run smoke:live-api` | Real API + live Supabase + Gemini: recovery, generation, cancel (throwaway users, cleaned up) |
-| `npm run spike:local` | Phase 0: render all 7 diagram types to `renders/` |
-
----
-
-## 🧪 Testing
-
-```mermaid
-flowchart LR
-    A["Worker<br/>95 tests"] --> B["API<br/>242 tests"] --> C["SQL / RLS<br/>68 checks"] --> D["Frontend unit<br/>75 tests"] --> E["Browser E2E<br/>79 tests"]
-    E --> F["Live RLS<br/>21 pass / 1 pending 0010"]
-```
-
-| Layer | Tooling | Highlights |
-|:--|:--|:--|
-| Worker | Vitest | Schema edge cases, multi-frame & selection filtering, quiz dupes, study companion, PDF/image extraction, eval scorer, semaphore & fallback chain, real `@excalidraw/cli` rendering, cancellation |
-| API | Vitest + Supertest | Auth before body parsing, source uploads, fail-closed quotas & `refund_usage_event`, zero-PII `product_events`, `api`/`worker` split roles, graceful shutdown, `BullMQGenerationQueue`, Redis rate limits, account deletion, log redaction, `/healthz` `/readyz`, `/admin/jobs/:id`, `/admin/metrics` |
-| Database | PGlite | Real migrations `0001`–`0010`; cross-user denial; concurrent quota & refund locks; `product_events` & `compute_product_metrics` RPC; 13-table deletion cascade; private Storage bucket isolation |
-| Frontend | Vitest | SSE parser, `returnTo` open-redirect guard, theme helpers, source validation, autosave/library filters, frame/selection helpers, schemas & CSP SHA-256 check |
-| E2E | Playwright + Axe | Quotas & refund UX, `/app/admin/metrics` role guard & UI, selection export, account deletion modal, Tablet `1024x768` layout, `reducedMotion`, keyboard walkthrough, Light/Dark WCAG 2 AA audit |
-| Live & Load | node:test + autocannon | Cross-user RLS + live `0009` + user C deletion (`21/22`; `1` skipped awaiting `0010`) & 0%-error load test |
-
-<sub>Counts as of Phase 6.5 verification. Full results & PRD §18.3 launch checklist: [`docs/phase-6/phase-6.5-closeout-report.md`](docs/phase-6/phase-6.5-closeout-report.md).</sub>
-
----
-
-## 📡 API reference
-
-All responses use one envelope:
-
-```json
-{ "success": true, "data": { "jobId": "…", "status": "queued" }, "error": null, "meta": { "requestId": "req_…" } }
-```
-
-<details>
-<summary><b>Endpoints</b></summary>
-
-| Method | Path | Auth | Notes |
-|:--|:--|:-:|:--|
-| `GET` | `/healthz`, `/readyz`, `/api/v1/health/*` | — | Safe liveness & readiness probes; no secrets |
-| `GET` | `/api/v1/me` | 🔒 | Profile + short-lived signed avatar URL |
-| `GET` / `DELETE` | `/api/v1/me/usage`, `/api/v1/me` | 🔒 | Monthly quota meter / confirmed account deletion & bucket sweep |
-| `PATCH` | `/api/v1/me` | 🔒 | `display_name`, `username`, `bio`, `preferences` |
-| `POST` / `DELETE` | `/api/v1/me/avatar` | 🔒 | Magic-byte check → WebP 256 px, EXIF stripped |
-| `POST` | `/api/v1/sources/upload` | 🔒 | Upload PDF/JPEG/PNG/WebP (`20 MB` max); magic-byte checked, EXIF stripped |
-| `GET` / `DELETE` | `/api/v1/sources/:sourceFileId` | 🔒 | Source file metadata + signed preview / owner-scoped delete |
-| `POST` | `/api/v1/generations` | 🔒 | `202` queued (`prompt`, `pdf`, `image`) · `409 ACTIVE_JOB_EXISTS` · `429` rate limited |
-| `GET` | `/api/v1/generations/:jobId` | 🔒 | Status, progress, plan, scene, warnings, safe error |
-| `GET` | `/api/v1/generations/:jobId/events` | 🔒 | **SSE**: `snapshot`, `stage`, `progress`, `completed`, `failed`, `cancelled` + heartbeats |
-| `POST` | `/api/v1/generations/:jobId/cancel` | 🔒 | Idempotent: `200` cancelled · `202` cancelling |
-| `POST` | `/api/v1/generations/:jobId/retry` | 🔒 | Failed/cancelled only; creates a linked attempt |
-| `GET` / `POST` | `/api/v1/folders` | 🔒 | List tree / create folder |
-| `PATCH` / `DELETE` | `/api/v1/folders/:folderId` | 🔒 | Rename/move folder (cycle guard) / delete folder safely |
-| `GET` / `POST` | `/api/v1/notes` | 🔒 | Filter/search/sort library / save completed generation as note |
-| `GET` / `PATCH` / `DELETE` | `/api/v1/notes/:noteId` | 🔒 | Note detail (latest draft or current version), update metadata, delete |
-| `POST` | `/api/v1/notes/:noteId/duplicate` | 🔒 | Independent copy from latest saved state |
-| `GET` / `POST` | `/api/v1/notes/:noteId/versions` | 🔒 | List history / create immutable snapshot |
-| `GET` | `/api/v1/notes/:noteId/versions/:versionId` | 🔒 | Preview specific historical version |
-| `POST` | `/api/v1/notes/:noteId/restore/:versionId` | 🔒 | Non-destructive restore (keeps unsnapshotted draft first) |
-| `PUT` | `/api/v1/notes/:noteId/draft` | 🔒 | Autosave draft with optimistic revision (`409 DRAFT_CONFLICT`) |
-| `POST` | `/api/v1/notes/:noteId/exports` | 🔒 | Render Full scene, `frame`, `selection` (`elementIds <= 200`), or `.zip` (`PNG`/`SVG`/`excalidraw`) |
-| `GET` | `/api/v1/exports/:exportId` | 🔒 | Export status and short-lived signed download URL |
-| `GET` | `/api/v1/notes/:noteId/study` | 🔒 | Load persisted quizzes, flashcard deck + mastery stats, and revision sheet |
-| `POST` | `/api/v1/notes/:noteId/explain` | 🔒 | Contextual explanation for selected canvas element(s) or section |
-| `POST` / `PATCH` | `/api/v1/notes/:noteId/quiz` · `/quiz/:quizId` | 🔒 | Generate quiz (`easy`/`mixed`/`hard`) · persist learner answer attempts & score |
-| `POST` / `PATCH` | `/api/v1/notes/:noteId/flashcards` · `/flashcards/:cardId` | 🔒 | Generate/replace flashcard deck · update card mastery (`new`/`learning`/`mastered`) |
-| `POST` | `/api/v1/notes/:noteId/revision` | 🔒 | Generate/refresh structured Markdown revision cheat sheet (`revision_sheet`) |
-| `POST` | `/api/v1/notes/:noteId/ask` | 🔒 | Grounded note Q&A returning cited `sectionIds` and `pageRefs` |
-| `POST` | `/api/v1/notes/:noteId/sections/:sectionId/regenerate` | 🔒 | Snapshot pre-regen backup version, regenerate one section with custom instruction, splice cleanly |
-| `GET` | `/api/v1/admin/jobs/:jobId` | 🔒 | Redacted operator job metadata lookup (`admin` role or `ADMIN_USER_IDS`; `403` otherwise) |
-| `GET` | `/api/v1/admin/metrics` | 🔒 | Aggregated PRD §14.1 telemetry (`<= 90d` window; `admin` role or `ADMIN_USER_IDS`; `403` otherwise) |
-
-Unknown, malformed and other users' job IDs all return the **same 404**.
-
-</details>
-
-<details>
-<summary><b>Create a generation (curl)</b></summary>
+Or launch separately:
 
 ```bash
-curl -X POST http://localhost:5000/api/v1/generations \
-  -H "Authorization: Bearer <supabase-access-token>" \
-  -H "Content-Type: application/json" \
-  -d '{
-        "inputType": "prompt",
-        "prompt": "Explain the TCP three-way handshake",
-        "settings": { "audienceLevel": "undergraduate", "detail": "standard", "preferredOutput": "auto" }
-      }'
+npm run dev:api       # Express API + in-process worker on http://localhost:5000
+npm run dev:frontend  # Vite SPA dev server on http://localhost:5173
 ```
+
+---
+
+## 🔐 Environment Variables
+
+Never place server secrets (`SUPABASE_SERVICE_ROLE_KEY`, `GEMINI_API_KEY`, `REDIS_URL`) in frontend files or `VITE_*` variables. Verified automatically by `scripts/checkEnvDocs.js`.
+
+<details open>
+<summary><b>Backend API &amp; Shared Runtime (<code>backend/.env.local</code>)</b></summary>
+
+| Variable | Default / Example | Required | Purpose |
+| :--- | :--- | :--- | :--- |
+| `NODE_ENV` | `development` | Yes | Runtime mode: `development`, `test`, `staging`, `production` |
+| `PROCESS_ROLE` | `all` | No | Process mode: `all`, `api` (HTTP+SSE), or `worker` (BullMQ consumer) |
+| `PORT` | `5000` | No | HTTP server port for API |
+| `WORKER_HEALTH_PORT` | `5001` | No | Healthcheck HTTP port (`/healthz`) when `PROCESS_ROLE=worker` |
+| `SHUTDOWN_GRACE_MS` | `25000` | No | Graceful drain window (ms) on `SIGTERM`/`SIGINT` |
+| `FRONTEND_ORIGIN` | `http://localhost:5173` | Yes | Exact comma-separated allowed CORS origins (never `*`) |
+| `SUPABASE_URL` | `https://...supabase.co` | Yes | Supabase project URL |
+| `SUPABASE_PUBLISHABLE_KEY` | `sb_publishable_...` | Yes | Supabase anon/publishable key for RLS-scoped access |
+| `SUPABASE_SERVICE_ROLE_KEY` | `sb_secret_...` | Prod / Jobs | Private server key for background result persistence & quota accounting |
+| `GEMINI_API_KEY` | — | Jobs / Companion | Google Gemini API credential (`@google/genai`) |
+| `GEMINI_MODEL` | `gemini-3.5-flash-lite` | No | Primary Gemini planner/companion model |
+| `GEMINI_FALLBACK_MODELS` | `gemini-3.1-flash-lite` | No | Comma-separated fallback models (max 3) |
+| `GENERATION_MAX_CONCURRENCY` | `2` | No | Concurrent jobs per process (`1..10`) |
+| `RENDER_CONCURRENCY` | `2` | No | Simultaneous headless Chromium/Mermaid CLI renders (`1..8`) |
+| `GENERATION_PLANNER_TIMEOUT_MS` | `90000` | No | Timeout per Gemini planning request |
+| `GENERATION_JOB_TIMEOUT_MS` | `240000` | No | Hard job wall-clock ceiling |
+| `EXCALIDRAW_BROWSER_PATH` | OS autodetect | No | Explicit Chrome/Chromium/Edge binary path for `@excalidraw/cli` |
+| `CLI_RENDER_TIMEOUT_MS` | `30000` | No | Headless CLI render timeout (`1000..120000`) |
+| `GENERATION_LIMIT_MONTHLY` | `50` | No | Monthly billable AI operations limit per user |
+| `REDIS_URL` | — | Split roles | `redis://` or `rediss://` URL for BullMQ queue & distributed limiters |
+| `SENTRY_DSN` | — | No | Server Sentry DSN (PII scrubbed before dispatch) |
+| `ADMIN_USER_IDS` | — | No | Comma-separated UUIDs granted `/api/v1/admin/metrics` access |
+| `AVATAR_MAX_BYTES` | `2097152` | No | Avatar upload size cap (`<= 5 MiB`) |
+| `AVATAR_SIGNED_URL_TTL_SECONDS` | `300` | No | Signed URL expiry for private avatars |
+| `SOURCE_MAX_BYTES` | `20971520` | No | Source PDF/image upload cap (`<= 20 MiB`) |
+| `SOURCE_MAX_PDF_PAGES` | `100` | No | Maximum PDF pages selectable per generation |
+| `SOURCE_SIGNED_URL_TTL_SECONDS` | `300` | No | Signed URL expiry for uploaded source files |
+| `TRUST_PROXY` | `false` | Prod | Set `true` behind a single trusted reverse proxy |
+| `LOG_LEVEL` | `info` | No | Pino verbosity (`fatal`, `error`, `warn`, `info`, `debug`, `trace`, `silent`) |
 
 </details>
 
 <details>
-<summary><b>SSE stream example</b></summary>
+<summary><b>Frontend SPA (<code>frontend/.env.local</code>)</b></summary>
 
-```text
-retry: 3000
-
-event: snapshot
-data: {"status":"queued","stage":null,"progress":0}
-
-event: stage
-data: {"status":"planning","stage":"planning","progress":12}
-
-event: progress
-data: {"progress":34}
-
-: heartbeat
-
-event: completed
-data: {"status":"completed","progress":100}
-```
-
-> Browsers' `EventSource` can't send headers, so the client reads the stream with `fetch()` + `ReadableStream`. **Tokens never go in URLs.**
+| Variable | Default / Example | Required | Purpose |
+| :--- | :--- | :--- | :--- |
+| `VITE_SUPABASE_URL` | `https://...supabase.co` | Yes | Public Supabase project URL |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | `sb_publishable_...` | Yes | Public anon key (enforced by RLS) |
+| `VITE_API_BASE_URL` | `http://localhost:5000` | Yes | Express API origin (no trailing slash) |
+| `VITE_SENTRY_DSN` | — | No | Optional browser Sentry DSN (`build.sourcemap` stays `false`) |
 
 </details>
 
 ---
 
-## 🔒 Security
+## 🎨 Brand, Motion & Asset Scripts
 
-- **Row Level Security everywhere**: explicit per-command owner policies; no `USING (true)`; grants scoped per column.
-- **Identity from the token only**: request bodies can't choose an owner ID; unknown fields are rejected.
-- **Secrets stay server-side**: service-role and Gemini keys never reach the browser; bundle scanned on every phase.
-- **Hardened HTTP**: helmet with deny-all CSP, HSTS, `X-Frame-Options: DENY`, strict CORS allowlist, per-user rate limits.
-- **Safe failures**: fixed error codes and messages; no stack traces, provider text or paths in responses.
-- **Private by default**: avatars re-encoded (metadata stripped) in a private bucket behind 5-minute signed URLs; prompts are never logged.
-- **Safe redirects**: `returnTo` accepts same-origin app paths only (blocks `//evil.com`, `/\evil.com`, tab/newline tricks).
+- **Design System**: Read [`docs/design/DESIGN.md`](docs/design/DESIGN.md) for color palette contrast ratios (`>= 4.5:1` WCAG AA across light & dark), display font pairing (`Bricolage Grotesque Variable`), surface motion tiers, and progressive `prefers-reduced-motion` safeguards.
+- **Generate Favicons, PWA Icons & OG Card** from `frontend/src/brand/markGeometry.js`:
+  ```bash
+  npm run brand:assets
+  ```
+- **Regenerate Light & Dark Documentation Screenshots**:
+  ```bash
+  npm run docs:screenshots
+  ```
 
 ---
 
-## 📁 Project structure
+## 🚢 Deployment & Security
+
+- **Frontend (`vercel.json` + [`deploy/origins.json`](deploy/origins.json))**: Strict non-wildcard CSP enforced in automated tests (`frontend/src/lib/phase6.test.js`), pre-paint theme script hash verified via SHA-256, `sourcemap: false`, static asset caching headers.
+- **API & Worker ([`Dockerfile`](Dockerfile) + [`render.yaml`](render.yaml))**: Multi-stage Node 22 + Chromium image split cleanly into `visualify-api` (`PROCESS_ROLE=api`) and `visualify-worker` (`PROCESS_ROLE=worker`) over Redis/BullMQ. Production fails closed if `SUPABASE_SERVICE_ROLE_KEY` or `REDIS_URL` is missing for split roles.
+- **Verification Gate**: Run all checks from root:
+  ```bash
+  npm run lint            # Syntax + pinned deps + secret scan + env/README doc checks
+  npm run test            # Worker, API, PGlite SQL/RLS, Frontend unit tests
+  npm run test:e2e        # Playwright end-to-end + Axe WCAG 2.2 AA + perf & motion checks
+  npm run eval:quality    # Offline/live AI quality benchmark suite
+  npm run test:rls:live   # Live Supabase RLS suite (requires .env.local test DB)
+  ```
+
+---
+
+## 📁 Project Structure
 
 <details>
-<summary><b>Show tree</b></summary>
+<summary><b>Repository tree overview</b></summary>
 
 ```text
 Visualizer/
-├── frontend/                 React SPA (Vite, Tailwind)
+├── frontend/
+│   ├── public/               favicon.*, apple-touch-icon.png, icon-*, og-image.png, fonts/, diagrams/
 │   └── src/
-│   │   ├── app/              router, providers, guards, app shell, ThemeContext
-│   │   ├── components/       Button, Field, Toast, ConfirmDialog, Menu, Modal, ThemeToggle, Avatar…
-│   │   ├── features/
-│   │   │   ├── auth/         login, signup, OAuth callback, password reset
-│   │   │   ├── create/       prompt + settings form
-│   │   │   ├── generation/   progress, workspace, lazy Excalidraw canvas
-│   │   │   ├── notes/        LibraryPage, NoteReadPage, NoteEditorPage, NotePresentPage, study/, VersionHistory, ExportDialog
-│   │   │   ├── profile/      profile, avatar, settings, preferences pages
-│   │   │   ├── admin/        AdminMetricsPage (PRD §14.1 launch metrics)
-│   │   │   └── marketing/    landing, features, legal, 404
-│   │   ├── hooks/            useProfile, useGenerationJob, useNotes, useAutosave
-│   │   └── lib/              api client, SSE parser, schemas, theme, autosave, libraryFilters, frames, supabase
-│   ├── backend/                  Express API (@visualify/api)
-│   │   ├── src/
-│   │   │   ├── generation/       queue, event bus, job store, pipeline, service
-│   │   │   ├── notes/            repository, service, renderer, zipArchive, noteFiles, errors
-│   │   │   ├── controllers/  routes/  middleware/  schemas/  services/
-│   │   │   └── app.js · server.js · worker.js
-│   │   ├── scripts/              live smoke tests
-│   │   ├── tests/                Vitest + Supertest
-│   │   └── worker/               generation worker (@visualify/worker)
-│   │       ├── eval/             30-fixture quality evaluation set (prompts, PDFs, images)
-│   │       └── src/              Gemini planner, schemas, adapters, semaphore, CLI renderer
-│   ├── supabase/
-│   │   ├── migrations/           0001..0010 (profiles, jobs, notes, sources, companion, hardening, closeout)
-│   │   └── tests/                PGlite (68) + live RLS suites (22)
-├── tests/e2e/                Playwright specs (79) + Axe WCAG 2 AA + screenshots
-├── docs/                     phase-1..6 reports, eval/, operations/runbook.md, screenshots
-├── Dockerfile · render.yaml  Single multi-stage split-role deployment (`api`, `worker`, Redis)
-├── scripts/lint.js           syntax, pinned dependency & frontend secret scan
-├── .github/workflows/ci.yml  GitHub Actions CI pipeline + Docker build & smoke test
-└── vercel.json               production SPA CSP hash & security headers
+│       ├── brand/            BrandMark.jsx + canonical markGeometry.js + tests
+│       ├── motion/           Reveal, Float, Collapse, SlidingIndicator, useReducedMotion, useCountUp
+│       ├── features/
+│       │   ├── marketing/    LandingPage + landing/ modules, FeaturesPage, PublicLayout, LegalPages
+│       │   ├── dashboard/    Dashboard, quota meter & recent notes
+│       │   ├── create/       Topic prompt, PDF page-range & EXIF-safe image create flow
+│       │   ├── generation/   SSE progress tracker & Excalidraw WorkspaceCanvas
+│       │   ├── notes/        Library, NoteRead, NoteEditor, NotePresent & active-recall study/ suite
+│       │   ├── profile/      Profile, avatar crop/upload, Settings & account deletion
+│       │   └── admin/        Privacy-preserving launch telemetry view
+│       └── styles/index.css  Tailwind v4 @theme palette, dark mode remaps & motion CSS tokens
+├── backend/
+│   ├── src/                  Express 5 API, auth middleware, quotas, generation/ pipeline, BullMQ, SSE
+│   └── worker/               Gemini planner/companion, 7 diagram compilers, @excalidraw/cli renderer & eval
+├── supabase/
+│   ├── migrations/           0001..0010 RLS schemas, buckets, study packs, quotas & product_events
+│   └── tests/                PGlite + live Postgres RLS verification suites
+├── deploy/origins.json       Canonical staging/production frontend & API origins
+├── docs/design/DESIGN.md     Visual tokens, WCAG contrast table & 3-tier motion specification
+├── scripts/                  lint.js, generateBrandAssets.js, captureReadmeScreenshots.js, checkEnvDocs.js, checkReadme.js
+└── tests/e2e/                Playwright specs (brand, landing, motion, perf, auth, generation, notes, theme)
 ```
 
 </details>
@@ -578,52 +291,32 @@ Visualizer/
 
 ## 📍 Roadmap
 
-- [x] **Phase 0**: Technical spike: Gemini plans, Mermaid/direct adapters, CLI rendering, Excalidraw embed
-- [x] **Phase 1**: Foundation: auth, profiles, avatars, RLS, secure Express API, app shell
-- [x] **Phase 2**: Prompt-to-visual MVP: async jobs, SSE progress, cancel/retry, visual workspace
-- [x] **Phase 3**: Notes library, autosave, version history, PNG/SVG/`.excalidraw` export, Light/Dark theme *(live RLS `0001`–`0005` passing `16/16`)*
-- [x] **Phase 4**: PDF & image inputs, Excalidraw diagram binding/palette upgrade & UI/UX polish *(live RLS `0001`–`0007` passing `18/18`)*
-- [x] **Phase 5**: Learning companion: multi-frame presentation mode, explain-this-node, quizzes, flashcards, revision sheet, note Q&A, section regeneration & `.zip` export *(live RLS `20/21`)*
-- [x] **Phase 6**: Launch hardening: quotas, BullMQ/Redis, selection export, account deletion, CSP, Docker/CI, load testing & accessibility *(live RLS `21/22` with `0009` live)*
-- [x] **Phase 6.5**: Launch close-out: single-image split roles (`api`/`worker`), 30-fixture AI quality eval set, quota refunds, zero-PII `product_events` + admin metrics (`apply 0010 for 22/22 live`)
-- [ ] **Phase 7**: Expansion: source Q&A, sharing, collaboration *(gated by PRD §14 metrics)*
+- [x] **Phase 0**: Technical spike — Gemini structured planner, diagram adapters, CLI rendering, Excalidraw integration
+- [x] **Phase 1**: Foundation — Supabase Auth, RLS profiles, private avatars, Express API & app shell
+- [x] **Phase 2**: Prompt-to-Visual MVP — async jobs, SSE progress streaming, cancel/retry & workspace
+- [x] **Phase 3**: Notes Library — folders, autosave (`409` conflict handling), snapshots, version history, Light/Dark themes & exports
+- [x] **Phase 4**: Multimodal Inputs — PDF page-range extraction, EXIF-safe image notes & source-referenced explanations
+- [x] **Phase 5**: Learning Companion — Presentation mode, explain-this-selection, Quiz, Flashcards, Revision sheet, Ask your note & `.zip` export
+- [x] **Phase 6**: Launch Hardening — monthly quota accounting, Redis/BullMQ queues, selection export, account deletion & CSP
+- [x] **Phase 6.5**: Deployability & Evidence Gate — split `api`/`worker` image, 30-fixture AI quality benchmark, quota refunds & `product_events`
+- [x] **Phase 6.6**: Brand Identity, Signature Landing Page, Site-Wide Motion System, Production CSP Fix & Reproducible Docs
+- [ ] **Phase 7**: Expansion — read-only share links, cross-note source Q&A & classroom collaboration *(gated per [PRD.MD §17](PRD.MD))*
 
 ---
 
 ## 📚 Documentation
 
-| Document | What's inside |
-|:--|:--|
-| [`PRD.MD`](PRD.MD) | Full product requirements, Phases 0–7 |
-| [`docs/phase-6/phase-6.5-closeout-report.md`](docs/phase-6/phase-6.5-closeout-report.md) | Phase 6.5 launch close-out, model eval decision, split-role architecture & PRD §18.3 checklist |
-| [`docs/phase-6/phase-6-report.md`](docs/phase-6/phase-6-report.md) | Phase 6 launch hardening, route security audit & PRD §18.3 launch checklist |
-| [`docs/operations/runbook.md`](docs/operations/runbook.md) | Operations runbook, alerts, backup/restore & job-ID support workflow |
-| [`docs/phase-5/phase-5-report.md`](docs/phase-5/phase-5-report.md) | Phase 5 multi-frame scenes, presentation mode, study companion, section regeneration & verification |
-| [`docs/phase-4/phase-4-report.md`](docs/phase-4/phase-4-report.md) | Phase 4 PDF/image inputs, Excalidraw diagram upgrade, UI/UX polish & verification |
-| [`docs/phase-3/phase-3-report.md`](docs/phase-3/phase-3-report.md) | Phase 3 library, autosave, versions, exports, Dark mode & verification |
-| [`docs/phase-2/phase-2-report.md`](docs/phase-2/phase-2-report.md) | Phase 2 build, decisions and live verification |
-| [`docs/phase-1/phase-1-report.md`](docs/phase-1/phase-1-report.md) | Phase 1 foundation and identity |
-| [`docs/spikes/`](docs/spikes/) | Phase 0 spike report, decisions, environment audit |
-| [`supabase/README.md`](supabase/README.md) | Migrations, Auth URLs, Google OAuth setup |
-| [`Agents.MD`](Agents.MD) | Engineering and security rules for this repo |
+| Document | Scope |
+| :--- | :--- |
+| [PRD.MD](PRD.MD) | Full product requirements (Phases 0–7) |
+| [docs/design/DESIGN.md](docs/design/DESIGN.md) | Visual tokens, verified contrast pairs & motion tier specification |
+| [docs/operations/runbook.md](docs/operations/runbook.md) | Alerts, incident response, backup/restore & support workflow |
+| [docs/phase-6/phase-6.5-closeout-report.md](docs/phase-6/phase-6.5-closeout-report.md) | Launch close-out, model eval decision & split-role architecture |
+| [supabase/README.md](supabase/README.md) | Database migrations, Auth URLs & OAuth configuration |
+| [AGENTS.md](AGENTS.md) | Engineering, code quality & security rules |
 
 ---
 
-## 🤝 Contributing
-
-<details>
-<summary><b>House rules</b></summary>
-
-- **JavaScript (ESM) only**: no TypeScript migration.
-- **Pin exact dependency versions** and commit `package-lock.json`.
-- **Never** commit `.env*` files except `.env.example`; never put secrets in `VITE_*`.
-- Every new table gets RLS, explicit per-command policies and tests in `supabase/tests/`.
-- Run `npm test` and `npm run test:e2e` before opening a PR.
-- Keep `react@18.3.1` pinned while `@excalidraw/excalidraw` depends on React 18.
-
-</details>
-
 <div align="center">
-<br/>
-<sub>Built with care for learners who think in pictures.</sub>
+<sub>MIT / Internal Educational Platform · Built with care for learners who think in pictures.</sub>
 </div>

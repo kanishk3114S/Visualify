@@ -66,6 +66,7 @@ export function ActionMenu({ label, items, align = "right", className }) {
           ref={menuRef}
           id={menuId}
           role="menu"
+          data-vf-menu
           aria-label={label}
           className={clsx("absolute z-30 mt-1 w-48 rounded-lg border border-stone-200 bg-surface p-1 shadow-lg", align === "right" ? "right-0" : "left-0")}
         >

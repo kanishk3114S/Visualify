@@ -98,9 +98,15 @@ function FavoriteButton({ note, act }) {
       onClick={() => act("favorite", note)}
       aria-pressed={note.isFavorite}
       aria-label={note.isFavorite ? `Remove ${note.title} from favorites` : `Add ${note.title} to favorites`}
-      className="rounded-md p-1.5 text-stone-500 hover:bg-stone-100 hover:text-stone-900"
+      className="rounded-md p-1.5 text-stone-500 transition-colors hover:bg-stone-100 hover:text-stone-900 active:scale-90"
     >
-      <Star className={clsx("h-4 w-4", note.isFavorite && "fill-current text-amber-800")} aria-hidden="true" />
+      <Star
+        className={clsx(
+          "h-4 w-4 transition-transform duration-200 ease-[var(--ease-spring)]",
+          note.isFavorite ? "scale-110 fill-current text-amber-800" : "scale-100"
+        )}
+        aria-hidden="true"
+      />
     </button>
   );
 }
@@ -127,8 +133,8 @@ function SourceTypeBadge({ sourceType }) {
 
 function NoteCard({ note, act, onTag }) {
   return (
-    <li className="group flex flex-col overflow-hidden rounded-xl border border-stone-200 bg-surface shadow-xs transition-shadow hover:shadow-sm" data-testid="note-card">
-      <Link to={`/app/notes/${note.id}`} className="block aspect-[16/10] overflow-hidden border-b border-stone-200 bg-stone-50" tabIndex={-1} aria-hidden="true">
+    <li className="group flex flex-col overflow-hidden rounded-xl border border-stone-200 bg-surface shadow-xs transition-[transform,box-shadow,border-color] duration-150 ease-[var(--ease-out)] hover:-translate-y-0.5 hover:border-stone-300 hover:shadow-md" data-testid="note-card">
+      <Link to={`/app/notes/${note.id}`} viewTransition className="block aspect-[16/10] overflow-hidden border-b border-stone-200 bg-stone-50" tabIndex={-1} aria-hidden="true">
         {note.previewUrl ? (
           <img src={note.previewUrl} alt="" loading="lazy" className="h-full w-full object-contain p-2 transition-transform duration-200 group-hover:scale-[1.02]" referrerPolicy="no-referrer" />
         ) : (
@@ -218,10 +224,10 @@ function SkeletonGrid() {
     <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-hidden="true" data-testid="library-skeleton">
       {Array.from({ length: 6 }, (_, i) => (
         <li key={i} className="overflow-hidden rounded-xl border border-stone-200 bg-surface">
-          <div className="aspect-[16/10] animate-pulse bg-stone-100 motion-reduce:animate-none" />
+          <div className="vf-shimmer aspect-[16/10] bg-stone-100" />
           <div className="space-y-2 p-3">
-            <div className="h-4 w-2/3 animate-pulse rounded bg-stone-100 motion-reduce:animate-none" />
-            <div className="h-3 w-1/2 animate-pulse rounded bg-stone-100 motion-reduce:animate-none" />
+            <div className="vf-shimmer h-4 w-2/3 rounded bg-stone-100" />
+            <div className="vf-shimmer h-3 w-1/2 rounded bg-stone-100" />
           </div>
         </li>
       ))}

@@ -14,6 +14,7 @@ import { SourceRefChips, VISUAL_TYPE_LABELS, drawnSections } from "../generation
 import { ExportDialog } from "./ExportDialog.jsx";
 import { VersionHistory } from "./VersionHistory.jsx";
 import { NoteLoadError } from "./NoteLoadError.jsx";
+import { Collapse } from "../../motion/Collapse.jsx";
 import { QuizView } from "./study/QuizView.jsx";
 import { FlashcardsView } from "./study/FlashcardsView.jsx";
 import { RevisionSheetView } from "./study/RevisionSheetView.jsx";
@@ -271,9 +272,9 @@ export function NoteReadPage() {
                 {reviewedCount} / {allConcepts.length} reviewed
               </Badge>
             </span>
-            <ChevronDown className={clsx("h-4 w-4 text-stone-500 transition-transform", checklistOpen && "rotate-180")} aria-hidden="true" />
+            <ChevronDown className={clsx("h-4 w-4 text-stone-500 transition-transform duration-200", checklistOpen && "rotate-180")} aria-hidden="true" />
           </button>
-          {checklistOpen && (
+          <Collapse open={checklistOpen}>
             <div className="border-t border-stone-200 px-5 py-4">
               <ul className="flex flex-wrap gap-2">
                 {allConcepts.map((concept) => {
@@ -301,7 +302,7 @@ export function NoteReadPage() {
                 })}
               </ul>
             </div>
-          )}
+          </Collapse>
         </Card>
       )}
 

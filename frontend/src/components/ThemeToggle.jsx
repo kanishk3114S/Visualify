@@ -78,7 +78,13 @@ export function ThemeToggle({ compact = false, className, align = "right" }) {
         )}
         data-testid="theme-toggle"
       >
-        <ResolvedIcon className="h-4 w-4" aria-hidden="true" />
+        <ResolvedIcon
+          className={clsx(
+            "h-4 w-4 transition-transform duration-300 ease-[var(--ease-spring)]",
+            resolvedTheme === "dark" ? "-rotate-12" : "rotate-0"
+          )}
+          aria-hidden="true"
+        />
         {!compact && <span>{current.label}</span>}
       </button>
       {open && (
@@ -86,6 +92,7 @@ export function ThemeToggle({ compact = false, className, align = "right" }) {
           ref={menuRef}
           id={menuId}
           role="menu"
+          data-vf-menu
           aria-label="Theme"
           className={clsx(
             "absolute z-50 mt-1 w-40 rounded-lg border border-stone-200 bg-surface p-1 shadow-lg",

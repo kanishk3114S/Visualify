@@ -28,8 +28,9 @@ export function Modal({ open, title, description, onClose, children, footer, siz
         if (!busy) onClose();
       }}
       data-testid={testId}
+      data-vf-dialog
       className={clsx(
-        "m-auto w-[calc(100%-2rem)] rounded-xl border border-stone-200 bg-surface p-0 text-stone-900 shadow-xl backdrop:bg-black/50 open:animate-fade-up",
+        "m-auto w-[calc(100%-2rem)] rounded-xl border border-stone-200 bg-surface p-0 text-stone-900 shadow-xl backdrop:bg-black/50 backdrop:transition-opacity open:animate-fade-up",
         size === "lg" ? "max-w-3xl" : size === "sm" ? "max-w-sm" : "max-w-md"
       )}
     >

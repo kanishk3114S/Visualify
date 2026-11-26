@@ -35,8 +35,12 @@ function AutosaveStatus({ state }) {
       data-testid="save-status"
       data-status={state.status}
       className={clsx(
-        "inline-flex items-center gap-1.5 text-xs font-medium",
-        state.status === "error" || state.status === "conflict" ? "text-red-700" : state.status === "saved" ? "text-accent-800" : "text-stone-600"
+        "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors duration-150",
+        state.status === "error" || state.status === "conflict"
+          ? "bg-red-50 text-red-700"
+          : state.status === "saved"
+            ? "bg-accent-50 text-accent-800"
+            : "bg-stone-100 text-stone-700"
       )}
     >
       <Icon className={clsx("h-4 w-4", state.status === "saving" && "animate-spin motion-reduce:animate-none")} aria-hidden="true" />

@@ -45,9 +45,9 @@ export const Button = forwardRef(function Button(
 });
 
 /** Router link styled as a button. */
-export function ButtonLink({ to, variant = "primary", size = "md", className, children, ...props }) {
+export function ButtonLink({ to, viewTransition = true, variant = "primary", size = "md", className, children, ...props }) {
   return (
-    <Link to={to} className={buttonClasses({ variant, size, className })} {...props}>
+    <Link to={to} viewTransition={viewTransition} className={buttonClasses({ variant, size, className })} {...props}>
       {children}
     </Link>
   );

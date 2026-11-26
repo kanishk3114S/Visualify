@@ -5,6 +5,7 @@ import { Card } from "../../../components/Layout.jsx";
 import { FormAlert } from "../../../components/Field.jsx";
 import { useCreateRevision } from "../../../hooks/useNotes.js";
 import { useUsage } from "../../../hooks/useProfile.js";
+import { Collapse } from "../../../motion/Collapse.jsx";
 
 export function RevisionSheetView({ noteId, revisionGuide }) {
   const createRevision = useCreateRevision();
@@ -96,7 +97,9 @@ export function RevisionSheetView({ noteId, revisionGuide }) {
                         {open ? "Hide" : "Reveal"}
                       </Button>
                     </div>
-                    {open && <p className="mt-2 border-t border-stone-200 pt-2 text-xs leading-relaxed text-stone-700">{item.answer}</p>}
+                    <Collapse open={open}>
+                      <p className="mt-2 border-t border-stone-200 pt-2 text-xs leading-relaxed text-stone-700">{item.answer}</p>
+                    </Collapse>
                   </li>
                 );
               })}

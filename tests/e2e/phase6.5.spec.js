@@ -46,8 +46,9 @@ test.describe("Phase 6.5: Admin Metrics, Non-Admin Guard, Quota Refund UX & Visu
 
     await page.getByRole("radio", { name: "Last 7 days" }).click();
     await page.getByRole("radio", { name: "Last 90 days" }).click();
-    const metricCalls = state.calls.filter((c) => c.path === "/api/v1/admin/metrics");
-    expect(metricCalls.length).toBeGreaterThanOrEqual(3);
+    await expect
+      .poll(() => state.calls.filter((c) => c.path === "/api/v1/admin/metrics").length, { timeout: 5_000 })
+      .toBeGreaterThanOrEqual(3);
 
     for (const vp of [
       { width: 1366, height: 860, tag: "desktop" },

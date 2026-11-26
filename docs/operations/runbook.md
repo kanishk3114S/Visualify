@@ -10,9 +10,9 @@ Never print or copy live credentials into tickets, terminal output, or `VITE_*` 
 
 | Service | Required Secret Env Vars | Public / Non-Secret Env Vars |
 |:--|:--|:--|
-| **Vercel Frontend** | *(none)* | `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `VITE_API_BASE_URL`, optional `VITE_SENTRY_DSN` |
-| **Render API (`PROCESS_ROLE=api`)** | `SUPABASE_SERVICE_ROLE_KEY`, `GEMINI_API_KEY`, `REDIS_URL`, optional `SENTRY_DSN` | `NODE_ENV=production`, `PROCESS_ROLE=api`, `FRONTEND_ORIGIN` (or `FRONTEND_ORIGINS`), `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `TRUST_PROXY=true`, `GENERATION_LIMIT_MONTHLY=50`, `RENDER_CONCURRENCY=2`, `SHUTDOWN_GRACE_MS=25000`, `ADMIN_USER_IDS` |
-| **Render Worker (`PROCESS_ROLE=worker`)** | `SUPABASE_SERVICE_ROLE_KEY`, `GEMINI_API_KEY`, `REDIS_URL`, optional `SENTRY_DSN` | `NODE_ENV=production`, `PROCESS_ROLE=worker`, `WORKER_HEALTH_PORT=4001`, `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `GEMINI_MODEL=gemini-3.5-flash-lite`, `GEMINI_FALLBACK_MODELS=gemini-2.5-flash,gemini-3.5-flash`, `GENERATION_MAX_CONCURRENCY=2`, `RENDER_CONCURRENCY=2`, `SHUTDOWN_GRACE_MS=25000`, `EXCALIDRAW_BROWSER_PATH=/usr/bin/chromium` |
+| **Vercel Frontend** | *(none)* | `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `VITE_API_BASE_URL` (must match `deploy/origins.json` API origin), optional `VITE_SENTRY_DSN` |
+| **Render API (`PROCESS_ROLE=api`)** | `SUPABASE_SERVICE_ROLE_KEY`, `GEMINI_API_KEY`, `REDIS_URL`, optional `SENTRY_DSN` | `NODE_ENV=production`, `PROCESS_ROLE=api`, `FRONTEND_ORIGIN` (`deploy/origins.json` frontend origin(s), e.g. `https://visualify.vercel.app`), `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `TRUST_PROXY=true`, `GENERATION_LIMIT_MONTHLY=50`, `RENDER_CONCURRENCY=2`, `SHUTDOWN_GRACE_MS=25000`, `ADMIN_USER_IDS` |
+| **Render Worker (`PROCESS_ROLE=worker`)** | `SUPABASE_SERVICE_ROLE_KEY`, `GEMINI_API_KEY`, `REDIS_URL`, optional `SENTRY_DSN` | `NODE_ENV=production`, `PROCESS_ROLE=worker`, `WORKER_HEALTH_PORT=5001`, `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `GEMINI_MODEL=gemini-3.5-flash-lite`, `GEMINI_FALLBACK_MODELS=gemini-2.5-flash,gemini-3.5-flash`, `GENERATION_MAX_CONCURRENCY=2`, `RENDER_CONCURRENCY=2`, `SHUTDOWN_GRACE_MS=25000`, `EXCALIDRAW_BROWSER_PATH=/usr/bin/chromium` |
 
 > **Fail-closed boot guards:**
 > - When `NODE_ENV=production`, API and worker refuse to start if `SUPABASE_SERVICE_ROLE_KEY` is missing (`ensureProductionServiceRole`).

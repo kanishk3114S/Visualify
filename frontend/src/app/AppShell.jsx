@@ -51,13 +51,14 @@ function NavItems({ onNavigate, rail = false }) {
             <NavLink
               to={item.to}
               end={item.end}
+              viewTransition
               onClick={onNavigate}
               title={rail ? item.label : undefined}
               className={({ isActive }) =>
                 clsx(
-                  "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                  "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-[background-color,color,transform] duration-150 active:scale-[0.99]",
                   rail && "lg:justify-center lg:px-0",
-                  isActive ? "bg-accent-50 text-accent-900" : "text-stone-700 hover:bg-stone-100 hover:text-stone-900"
+                  isActive ? "bg-accent-50 text-accent-900 shadow-2xs" : "text-stone-700 hover:bg-stone-100 hover:text-stone-900"
                 )
               }
             >
@@ -163,7 +164,7 @@ export function AppShell() {
         id="app-nav"
         aria-label="Main"
         className={clsx(
-          "fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-stone-200 bg-surface transition-transform lg:sticky lg:top-0 lg:h-dvh lg:translate-x-0",
+          "fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-stone-200 bg-surface transition-[transform,visibility] duration-200 ease-[var(--ease-out)] lg:sticky lg:top-0 lg:h-dvh lg:translate-x-0",
           // The workspace needs the width: collapse to an icon rail on large screens.
           fullWidth && "lg:w-16",
           // Closed mobile drawer is also `invisible`, so it can't take keyboard focus off-screen.

@@ -11,10 +11,10 @@ export function AuthLayout({ title, subtitle, children, footer }) {
         <ThemeToggle compact />
       </header>
       <main className="flex flex-1 items-start justify-center px-4 pb-16 pt-4 sm:pt-10">
-        <div className="w-full max-w-md">
+        <div className="w-full max-w-md animate-fade-up">
           <div className="rounded-xl border border-stone-200 bg-surface p-6 shadow-xs sm:p-8">
             <div className="mb-6 space-y-1.5">
-              <h1 className="text-xl font-semibold tracking-tight text-stone-900">{title}</h1>
+              <h1 className="font-display text-2xl font-semibold tracking-tight text-stone-900">{title}</h1>
               {subtitle && <p className="text-sm text-stone-600">{subtitle}</p>}
             </div>
             {children}

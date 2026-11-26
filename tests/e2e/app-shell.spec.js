@@ -28,7 +28,7 @@ test.describe("Phase 1: public pages", () => {
     }
     // Release policy: unreleased features are labelled, not advertised as available.
     await page.goto("/features");
-    await expect(page.getByText("Available now")).toHaveCount(9);
+    await expect(page.getByText("Available now")).toHaveCount(10);
     expect(errors).toEqual([]);
   });
 

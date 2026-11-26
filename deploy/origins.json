@@ -1,0 +1,10 @@
+{
+  "staging": {
+    "api": "https://visualify-api-staging.onrender.com",
+    "frontend": "https://visualify-staging.vercel.app"
+  },
+  "production": {
+    "api": "https://visualify-api.onrender.com",
+    "frontend": "https://visualify.vercel.app"
+  }
+}

@@ -6,20 +6,88 @@
  */
 @import "tailwindcss";
 
+/* Self-hosted Latin variable display face + metric-matched fallback to prevent font-swap CLS. */
+@font-face {
+  font-family: "Bricolage Grotesque Variable";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 200 800;
+  src: url("/fonts/bricolage-grotesque-latin-wght-normal.woff2") format("woff2-variations");
+}
+
+@font-face {
+  font-family: "Bricolage Fallback";
+  src: local("Segoe UI"), local("Arial"), local("Helvetica Neue");
+  size-adjust: 102%;
+  ascent-override: 96%;
+  descent-override: 24%;
+  line-gap-override: 0%;
+}
+
 /* `dark:` utilities follow the .dark class on <html> (set before first paint
    by the inline script in index.html, then managed by ThemeProvider). */
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-display: "Bricolage Grotesque Variable", "Bricolage Fallback", ui-sans-serif, system-ui, -apple-system, sans-serif;
 
-  /* Restrained accent: deep teal (>= 4.5:1 on white and on the warm canvas). */
+  /* Restrained primary accent: deep teal (>= 4.5:1 on white and warm canvas). */
   --color-accent-50: #f0fdfa;
   --color-accent-100: #ccfbf1;
   --color-accent-600: #0d9488;
   --color-accent-700: #0f766e;
   --color-accent-800: #115e59;
   --color-accent-900: #134e4a;
+
+  /* Diagram spark accents & signature hero band surface */
+  --color-spark-indigo: #4f46e5;
+  --color-spark-indigo-soft: #eef2ff;
+  --color-spark-indigo-ink: #312e81;
+  --color-spark-amber: #d97706;
+  --color-spark-amber-soft: #fef3c7;
+  --color-spark-amber-ink: #78350f;
+  --color-hero: #072220;
+  --color-hero-elevated: #0c312e;
+  --color-hero-border: #134e4a;
+
+  /* BrandMark CSS variable palette */
+  --brand-bg: #0f766e;
+  --brand-fg: #ffffff;
+  --brand-spark: #f59e0b;
+
+  /* Motion duration & easing tokens */
+  --duration-micro: 120ms;
+  --duration-ui: 190ms;
+  --duration-enter: 440ms;
+  --duration-float: 7000ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: linear(
+    0,
+    0.009,
+    0.035 2.1%,
+    0.141 4.4%,
+    0.723 12.9%,
+    0.938 16.7%,
+    1.017,
+    1.077 20.4%,
+    1.121,
+    1.149 24.3%,
+    1.159,
+    1.163 27%,
+    1.154,
+    1.129 32.8%,
+    1.051 39.6%,
+    1.017 43.1%,
+    0.991,
+    0.977 51%,
+    0.974 53.8%,
+    0.975 57.1%,
+    0.997 69.8%,
+    1.003 76.9%,
+    1.004 83.8%,
+    1
+  );
 
   /* Semantic surfaces */
   --color-canvas: #faf8f5; /* page background (warm neutral) */
@@ -81,6 +149,17 @@
     --color-amber-200: #6b4e12;
     --color-amber-800: #fcd34d;
     --color-amber-900: #fde68a;
+
+    --color-spark-indigo: #818cf8;
+    --color-spark-indigo-soft: #1e1b4b;
+    --color-spark-indigo-ink: #e0e7ff;
+    --color-spark-amber: #fbbf24;
+    --color-spark-amber-soft: #2a1f0a;
+    --color-spark-amber-ink: #fde68a;
+
+    --brand-bg: #0d9488;
+    --brand-fg: #ffffff;
+    --brand-spark: #fbbf24;
   }
 
   html {
@@ -141,15 +220,223 @@
   }
 }
 
+@keyframes visualify-float {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -6px, 0);
+  }
+}
+
+@keyframes visualify-marquee {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+@keyframes visualify-shimmer {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes visualify-pulse-calm {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(0.96);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.04);
+  }
+}
+
+@keyframes visualify-stroke-draw {
+  from {
+    stroke-dashoffset: var(--dash-len, 180);
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* View Transitions between pages — compositor only, muted cleanly under reduced-motion. */
+::view-transition-old(root) {
+  animation: 150ms var(--ease-out) both visualify-vt-out;
+}
+
+::view-transition-new(root) {
+  animation: 210ms var(--ease-out) both visualify-vt-in;
+}
+
+@keyframes visualify-vt-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes visualify-vt-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Native @starting-style transitions for Modal dialogs, ActionMenus, and popovers. */
+[data-vf-dialog] {
+  transition:
+    opacity var(--duration-ui) var(--ease-out),
+    transform var(--duration-ui) var(--ease-out);
+  opacity: 1;
+  transform: scale(1) translateY(0);
+}
+
+@starting-style {
+  [data-vf-dialog] {
+    opacity: 0;
+    transform: scale(0.97) translateY(6px);
+  }
+}
+
+[data-vf-menu] {
+  transition:
+    opacity var(--duration-micro) var(--ease-out),
+    transform var(--duration-micro) var(--ease-out);
+  transform-origin: top right;
+  opacity: 1;
+  transform: scale(1) translateY(0);
+}
+
+@starting-style {
+  [data-vf-menu] {
+    opacity: 0;
+    transform: scale(0.96) translateY(-4px);
+  }
+}
+
+/* Progressive scroll reveal: visible by default (SSR / no-JS / reduced-motion safe).
+   Uses compositor-only transform (never reducing text opacity) so WCAG contrast stays 100% compliant. */
+.vf-reveal {
+  opacity: 1;
+  transform: none;
+  transition: transform var(--duration-enter) var(--ease-out) var(--reveal-delay, 0ms);
+}
+
+[data-motion="ready"] .vf-reveal:not(.is-visible) {
+  transform: translate3d(var(--reveal-x, 0px), var(--reveal-y, 12px), 0);
+}
+
+[data-motion="ready"] .vf-reveal.is-visible {
+  transform: translate3d(0, 0, 0);
+}
+
+/* Pure CSS Grid smooth disclosure expand/collapse (0fr -> 1fr). */
+.vf-collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition:
+    grid-template-rows var(--duration-ui) var(--ease-out),
+    opacity var(--duration-ui) var(--ease-out);
+  opacity: 0;
+}
+
+.vf-collapse[data-open="true"] {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+
+.vf-collapse-inner {
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* Compositor idle float on marketing input cards; paused under reduced-motion. */
+.vf-float {
+  animation: visualify-float var(--duration-float) ease-in-out var(--float-delay, 0ms) infinite;
+  will-change: transform;
+}
+
+.vf-marquee-track {
+  display: flex;
+  width: max-content;
+  animation: visualify-marquee 42s linear infinite;
+}
+
+.vf-marquee-wrap:hover .vf-marquee-track,
+.vf-marquee-wrap:focus-within .vf-marquee-track,
+.vf-marquee-wrap[data-paused="true"] .vf-marquee-track {
+  animation-play-state: paused;
+}
+
+.vf-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+
+.vf-shimmer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.28), transparent);
+  animation: visualify-shimmer 1.4s ease-in-out infinite;
+}
+
+.dark .vf-shimmer::after {
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root),
+  ::view-transition-new(root),
+  .vf-reveal,
+  .vf-float,
+  .vf-marquee-track,
+  .vf-shimmer::after {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+    opacity: 1 !important;
+  }
+}
+
 @layer utilities {
   .animate-fade-up {
-    animation: visualify-fade-up 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation: visualify-fade-up var(--duration-ui) var(--ease-out) both;
   }
   .animate-slide-in-right {
-    animation: visualify-slide-in-right 200ms cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation: visualify-slide-in-right var(--duration-ui) var(--ease-out) both;
   }
   .animate-toast-progress {
     transform-origin: left center;
     animation: visualify-toast-progress 5000ms linear forwards;
+  }
+  .animate-calm-pulse {
+    animation: visualify-pulse-calm 1600ms ease-in-out infinite;
+  }
+  .vf-press {
+    transition:
+      transform var(--duration-micro) var(--ease-out),
+      background-color var(--duration-ui) var(--ease-out),
+      border-color var(--duration-ui) var(--ease-out),
+      box-shadow var(--duration-ui) var(--ease-out);
+  }
+  .vf-press:active:not(:disabled) {
+    transform: scale(0.98);
   }
 }

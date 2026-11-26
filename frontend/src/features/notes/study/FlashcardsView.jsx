@@ -8,8 +8,10 @@ import { SegmentedControl } from "../../../components/SegmentedControl.jsx";
 import { useCreateFlashcards, useUpdateFlashcard } from "../../../hooks/useNotes.js";
 import { useUsage } from "../../../hooks/useProfile.js";
 import { summarizeFlashcards } from "../../../lib/frames.js";
+import { useReducedMotion } from "../../../motion/useReducedMotion.js";
 
 export function FlashcardsView({ noteId, flashcards = [] }) {
+  const reducedMotion = useReducedMotion();
   const createCards = useCreateFlashcards();
   const updateCard = useUpdateFlashcard();
   const { data: usage } = useUsage();
@@ -117,7 +119,8 @@ export function FlashcardsView({ noteId, flashcards = [] }) {
             aria-pressed={flipped}
             data-testid="flashcard-card"
             className={clsx(
-              "flex min-h-[14rem] w-full flex-col items-center justify-center rounded-2xl border-2 p-6 text-center shadow-xs transition-all duration-150 active:scale-[0.99]",
+              "flex min-h-[14rem] w-full flex-col items-center justify-center rounded-2xl border-2 p-6 text-center shadow-xs transition-[background-color,border-color,transform] duration-200 active:scale-[0.99]",
+              !reducedMotion && "hover:-translate-y-0.5 hover:shadow-md",
               flipped ? "border-accent-700 bg-accent-50/60" : "border-stone-200 bg-surface hover:border-stone-300"
             )}
           >

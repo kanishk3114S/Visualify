@@ -61,3 +61,12 @@ if (errors > 0) {
   process.exit(1);
 }
 console.log(`Lint passed (${jsFiles.length} JS files syntax-checked, dependencies pinned, frontend secret boundaries clean).`);
+
+// 4. Verify environment documentation parity & README link/asset integrity
+for (const docScript of ["scripts/checkEnvDocs.js", "scripts/checkReadme.js"]) {
+  try {
+    execFileSync(process.execPath, [path.join(ROOT, docScript)], { stdio: "inherit" });
+  } catch {
+    process.exit(1);
+  }
+}

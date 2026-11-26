@@ -203,9 +203,9 @@ export function NotePresentPage() {
               onClick={() => go(idx)}
               aria-current={idx === safeIdx ? "true" : undefined}
               className={clsx(
-                "max-w-xs truncate rounded-md border px-2.5 py-1 text-xs font-medium transition-colors",
+                "max-w-xs truncate rounded-md border px-2.5 py-1 text-xs font-medium transition-[background-color,border-color,color,transform] duration-150 active:scale-[0.98]",
                 idx === safeIdx
-                  ? "border-accent-700 bg-accent-50 text-accent-900"
+                  ? "border-accent-700 bg-accent-50 text-accent-900 shadow-2xs"
                   : "border-stone-200 bg-canvas text-stone-700 hover:border-stone-300 hover:text-stone-900"
               )}
             >

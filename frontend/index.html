@@ -3,10 +3,53 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Visualify turns study topics into editable visual notes." />
+    <meta
+      name="description"
+      content="Visualify turns study topics, PDFs, and notes into editable Excalidraw diagrams, quizzes, flashcards, and revision sheets."
+    />
     <meta name="referrer" content="strict-origin-when-cross-origin" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#faf8f5" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#12100e" />
+    <link rel="canonical" href="https://visualify.vercel.app/" />
+
+    <!-- Brand identity icons & web manifest -->
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <title>Visualify</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+
+    <!-- Preload primary Latin variable display font -->
+    <link
+      rel="preload"
+      as="font"
+      type="font/woff2"
+      href="/fonts/bricolage-grotesque-latin-wght-normal.woff2"
+      crossorigin
+    />
+
+    <!-- Open Graph & Twitter social card -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Visualify" />
+    <meta property="og:title" content="Visualify — Turn study topics into editable visual maps" />
+    <meta
+      property="og:description"
+      content="AI-planned flowcharts, mind maps, timelines, and Excalidraw canvases alongside quizzes, flashcards, and revision sheets."
+    />
+    <meta property="og:url" content="https://visualify.vercel.app/" />
+    <meta property="og:image" content="https://visualify.vercel.app/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Visualify — Turn study topics into editable visual maps" />
+    <meta
+      name="twitter:description"
+      content="Editable visual notes, Excalidraw diagrams, and interactive study tools generated from topics, PDFs, or images."
+    />
+    <meta name="twitter:image" content="https://visualify.vercel.app/og-image.png" />
+
+    <title>Visualify — Editable Visual Study Notes &amp; Diagrams</title>
     <!-- Pre-paint theme (same rules as src/lib/theme.js) to avoid a flash of the wrong theme. -->
     <script>
       (function () {

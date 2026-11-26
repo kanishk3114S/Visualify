@@ -6,6 +6,7 @@ import { Button, ButtonLink } from "../../components/Button.jsx";
 import { SegmentedControl } from "../../components/SegmentedControl.jsx";
 import { Spinner } from "../../components/Spinner.jsx";
 import { adminApi } from "../../lib/apiClient.js";
+import { Reveal } from "../../motion/Reveal.jsx";
 
 const RANGE_OPTIONS = [
   { value: "7", label: "Last 7 days" },
@@ -183,17 +184,19 @@ export function AdminMetricsPage() {
       ) : (
         <>
           <section aria-label="Primary metrics" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {tiles.map((tile) => (
-              <Card key={tile.label} className="flex flex-col justify-between p-5">
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <h2 className="text-sm font-medium text-stone-700">{tile.label}</h2>
-                    <Badge tone="neutral">{tile.target}</Badge>
+            {tiles.map((tile, idx) => (
+              <Reveal key={tile.label} delay={idx * 45} y={8}>
+                <Card className="flex h-full flex-col justify-between p-5">
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <h2 className="text-sm font-medium text-stone-700">{tile.label}</h2>
+                      <Badge tone="neutral">{tile.target}</Badge>
+                    </div>
+                    <p className="text-2xl font-semibold tabular-nums tracking-tight text-stone-900">{tile.value}</p>
                   </div>
-                  <p className="text-2xl font-semibold tracking-tight text-stone-900">{tile.value}</p>
-                </div>
-                <p className="mt-3 text-xs text-stone-600">{tile.detail}</p>
-              </Card>
+                  <p className="mt-3 text-xs text-stone-600">{tile.detail}</p>
+                </Card>
+              </Reveal>
             ))}
           </section>
 
