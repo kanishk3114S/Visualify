@@ -18,9 +18,9 @@ Describe a concept, and Visualify plans the right diagram, draws it as an **edit
   <img alt="Excalidraw" src="https://img.shields.io/badge/Excalidraw-0.18-6965DB" />
 </p>
 <p>
-  <img alt="Phase 5 offline & E2E verified" src="https://img.shields.io/badge/status-Phase%205%20verified%20(awaiting%200008%20live)-0f766e" />
+  <img alt="Phase 6.5 offline & E2E verified" src="https://img.shields.io/badge/status-Phase%206.5%20verified%20(awaiting%200010%20live)-0f766e" />
   <img alt="JavaScript only" src="https://img.shields.io/badge/language-JavaScript%20(ESM)-F7DF1E?logo=javascript&logoColor=black" />
-  <img alt="RLS verified" src="https://img.shields.io/badge/RLS-62%20SQL%20%7C%2018%20live-0f766e" />
+  <img alt="RLS verified" src="https://img.shields.io/badge/RLS-68%20SQL%20%7C%2021%20live-0f766e" />
 </p>
 
 [**Quick start**](#-quick-start) · [**How it works**](#-how-it-works) · [**API**](#-api-reference) · [**Testing**](#-testing) · [**Roadmap**](#-roadmap) · [**Docs**](#-documentation)
@@ -47,8 +47,8 @@ Describe a concept, and Visualify plans the right diagram, draws it as an **edit
 </table>
 
 > [!NOTE]
-> **Status: Phase 5 (Multi-Frame Presentation Mode, AI Study Companion & Section Regeneration) is implemented and verified offline & in Playwright E2E**, including automated WCAG 2 AA contrast checks in Light & Dark modes across desktop (`1366x860`) and mobile (`390x844`).
-> Live RLS checks for `0001`–`0007` pass (`18/18`); apply `0008_learning_companion.sql` in Supabase SQL Editor to enable the remaining live Phase 5 RLS check (`npm run test:rls:live`).
+> **Status: Phase 6.5 (Launch Close-Out, Single-Image Split Roles, AI Quality Eval Set, Quota Refunds & PRD §14 Telemetry) is implemented and verified**, with offline suites (`95` worker, `242` API, `68` PGlite SQL, `75` frontend unit), `79` Playwright E2E + Axe WCAG 2 AA tests, production bundle build (`0` `.map` files), lint (`126` JS files), live `eval:quality` (`30/30` on `gemini-3.5-flash-lite`), and `dockerSmoke.js` passing.
+> Live RLS checks pass `21/22` (`0009` verified live) with `1` skipped awaiting owner-applied `supabase/migrations/0010_launch_closeout.sql` (`npm run test:rls:live`). Live staging deploy and container image build in CI run on GitHub Actions / Render / Vercel.
 
 <details>
 <summary><b>📑 Table of contents</b></summary>
@@ -283,6 +283,8 @@ supabase/migrations/0005_note_storage_buckets.sql
 supabase/migrations/0006_source_files.sql
 supabase/migrations/0007_source_files_bucket.sql
 supabase/migrations/0008_learning_companion.sql
+supabase/migrations/0009_phase6_hardening.sql
+supabase/migrations/0010_launch_closeout.sql
 ```
 
 Then configure the Auth redirect URLs and Google OAuth: step-by-step in [`supabase/README.md`](supabase/README.md).
@@ -312,11 +314,18 @@ Sign up, open **Create**, pick an example and hit **Generate visual**. 🎉
 | `SUPABASE_SERVICE_ROLE_KEY` | `backend/.env.local` | 🔒 | **Server only.** Used by the job runner to write results |
 | `FRONTEND_ORIGIN` | `backend/.env.local` | — | Exact CORS allowlist (comma-separated, never `*`) |
 | `GEMINI_API_KEY` | `backend/.env.local` or `backend/worker/.env.local` | 🔒 | **Server only.** Model access |
-| `GEMINI_MODEL` | same | — | Default `gemini-3.5-flash` |
-| `GENERATION_MAX_CONCURRENCY` | `backend/.env.local` | — | Jobs running at once (default `2`) |
+| `GEMINI_MODEL` | same | — | Default `gemini-3.5-flash-lite` (evidence-selected over `gemini-3.5-flash` via 30-fixture eval) |
+| `GEMINI_FALLBACK_MODELS` | same | — | Comma-separated failover models (`<= 3`, default `gemini-2.5-flash,gemini-3.5-flash`) |
+| `PROCESS_ROLE` | `backend/.env.local` | — | `all` (local dev), `api` (HTTP + SSE), or `worker` (BullMQ consumer + `/healthz` `/readyz`) |
+| `WORKER_HEALTH_PORT` · `SHUTDOWN_GRACE_MS` | `backend/.env.local` | — | Worker health HTTP port (`4001`) and graceful `SIGTERM` drain timeout (`25000` ms) |
+| `GENERATION_MAX_CONCURRENCY` · `RENDER_CONCURRENCY` | `backend/.env.local` | — | Jobs running at once (default `2`) and process-wide `@excalidraw/cli` semaphore (`1..8`, default `2`) |
 | `GENERATION_PLANNER_TIMEOUT_MS` / `GENERATION_JOB_TIMEOUT_MS` | `backend/.env.local` | — | Per-call and whole-job limits |
 | `EXCALIDRAW_BROWSER_PATH` | `backend/worker/.env.local` | — | Browser for Mermaid conversion (auto-detected if unset) |
 | `AVATAR_MAX_BYTES` / `AVATAR_SIGNED_URL_TTL_SECONDS` | `backend/.env.local` | — | Avatar limits |
+| `GENERATION_LIMIT_MONTHLY` | `backend/.env.local` | — | Monthly billable action quota per user (default `50`; provider/system errors auto-refund via `refund_usage_event`) |
+| `REDIS_URL` | `backend/.env.local` | — | Redis URL (`BullMQGenerationQueue` + `RedisStore` rate limits; required in production split `api`/`worker` roles) |
+| `SENTRY_DSN` / `VITE_SENTRY_DSN` | `backend/.env.local` / `frontend/.env.local` | — | Optional PII-scrubbed Sentry error tracking |
+| `ADMIN_USER_IDS` | `backend/.env.local` | — | Optional comma-separated user UUIDs for `/api/v1/admin/jobs/:jobId` and `/api/v1/admin/metrics` |
 
 Generation returns `503 GENERATION_UNAVAILABLE` until **both** `SUPABASE_SERVICE_ROLE_KEY` and `GEMINI_API_KEY` are set.
 
@@ -331,15 +340,20 @@ Generation returns `503 GENERATION_UNAVAILABLE` until **both** `SUPABASE_SERVICE
 
 | Command | What it does |
 |:--|:--|
+| `npm run dev` | Start both the Express API and Vite frontend together in one terminal |
 | `npm run dev:api` | Start the Express API with file watching |
 | `npm run dev:frontend` | Start the Vite dev server |
 | `npm run build:frontend` | Production build (no source maps) |
-| `npm test` | **All offline suites**: worker → API → SQL/RLS → frontend unit |
+| `npm test` | **All offline suites**: worker (`95`) → API (`242`) → SQL/RLS (`68`) → frontend unit (`75`) |
+| `npm run lint` | Workspace syntax check (`126` JS files), pinned deps & frontend secret boundaries |
 | `npm run test:worker` · `test:api` · `test:frontend` | Individual suites |
 | `npm run test:rls:sql` | Migrations + RLS on real Postgres (PGlite), no credentials needed |
-| `npm run test:e2e` | Playwright browser tests (mocked API) |
-| `npm run test:rls:live` | Cross-user RLS checks against your **live** dev project |
+| `npm run test:e2e` | Playwright browser tests (`79` specs + Axe + tablet/motion checks, mocked API) |
+| `npm run test:rls:live` | Cross-user RLS checks against your **live** dev project (`21/22`, `1` awaiting `0010`) |
+| `npm run test:load` | Autocannon HTTP load harness against Express API (`0%` error rate gate) |
+| `npm run eval:quality` | Run the 30-fixture AI quality evaluation harness against Gemini model(s) |
 | `npm run smoke:generation` | Real Gemini + CLI pipeline, in-memory store (1 model call) |
+| `npm run smoke:staging` | Unauthenticated readiness, auth fail-closed (`401`), and CORS smoke check against staging |
 | `npm run smoke:live-api` | Real API + live Supabase + Gemini: recovery, generation, cancel (throwaway users, cleaned up) |
 | `npm run spike:local` | Phase 0: render all 7 diagram types to `renders/` |
 
@@ -349,20 +363,20 @@ Generation returns `503 GENERATION_UNAVAILABLE` until **both** `SUPABASE_SERVICE
 
 ```mermaid
 flowchart LR
-    A["Worker<br/>85 tests"] --> B["API<br/>216 tests"] --> C["SQL / RLS<br/>62 checks"] --> D["Frontend unit<br/>73 tests"] --> E["Browser E2E<br/>70 tests"]
-    E --> F["Live RLS<br/>18 pass / 1 pending 0008"]
+    A["Worker<br/>95 tests"] --> B["API<br/>242 tests"] --> C["SQL / RLS<br/>68 checks"] --> D["Frontend unit<br/>75 tests"] --> E["Browser E2E<br/>79 tests"]
+    E --> F["Live RLS<br/>21 pass / 1 pending 0010"]
 ```
 
 | Layer | Tooling | Highlights |
 |:--|:--|:--|
-| Worker | Vitest | Schema edge cases, multi-frame scene composition, study companion schemas & injection hardening, PDF/image extraction, real `@excalidraw/cli` frame rendering, cancellation |
-| API | Vitest + Supertest | Auth before body parsing, source uploads, SSE, notes/folders CRUD, autosave conflicts, versions, frame/ZIP exports, companion quiz/flashcard/revision/ask/regenerate endpoints & rate limits |
-| Database | PGlite | Real migrations `0001`–`0008`; cross-user denial; immutable versions; `source_files` ownership; `note_quizzes`/`note_flashcards`/`note_revision_guides`/`usage_events` RLS & storage `application/zip` |
-| Frontend | Vitest | SSE parser, `returnTo` open-redirect guard, theme helpers, source validation, autosave/library filters, frame extraction & selection helpers, schemas |
-| E2E | Playwright + Axe | Interactive showcase, PDF/image flows, save/library/versions/export (`.zip`), Presentation mode, Quiz/Flashcards/Revision/Ask, Study Assistant explain & section regen, Light/Dark WCAG 2 AA audit |
-| Live | node:test + scripts | Cross-user RLS (`0001`–`0007` pass `18/18`; `0008` ready once applied) |
+| Worker | Vitest | Schema edge cases, multi-frame & selection filtering, quiz dupes, study companion, PDF/image extraction, eval scorer, semaphore & fallback chain, real `@excalidraw/cli` rendering, cancellation |
+| API | Vitest + Supertest | Auth before body parsing, source uploads, fail-closed quotas & `refund_usage_event`, zero-PII `product_events`, `api`/`worker` split roles, graceful shutdown, `BullMQGenerationQueue`, Redis rate limits, account deletion, log redaction, `/healthz` `/readyz`, `/admin/jobs/:id`, `/admin/metrics` |
+| Database | PGlite | Real migrations `0001`–`0010`; cross-user denial; concurrent quota & refund locks; `product_events` & `compute_product_metrics` RPC; 13-table deletion cascade; private Storage bucket isolation |
+| Frontend | Vitest | SSE parser, `returnTo` open-redirect guard, theme helpers, source validation, autosave/library filters, frame/selection helpers, schemas & CSP SHA-256 check |
+| E2E | Playwright + Axe | Quotas & refund UX, `/app/admin/metrics` role guard & UI, selection export, account deletion modal, Tablet `1024x768` layout, `reducedMotion`, keyboard walkthrough, Light/Dark WCAG 2 AA audit |
+| Live & Load | node:test + autocannon | Cross-user RLS + live `0009` + user C deletion (`21/22`; `1` skipped awaiting `0010`) & 0%-error load test |
 
-<sub>Counts as of Phase 5 verification. Full results: [`docs/phase-5/phase-5-report.md`](docs/phase-5/phase-5-report.md).</sub>
+<sub>Counts as of Phase 6.5 verification. Full results & PRD §18.3 launch checklist: [`docs/phase-6/phase-6.5-closeout-report.md`](docs/phase-6/phase-6.5-closeout-report.md).</sub>
 
 ---
 
@@ -379,8 +393,9 @@ All responses use one envelope:
 
 | Method | Path | Auth | Notes |
 |:--|:--|:-:|:--|
-| `GET` | `/api/v1/health` | — | API + Supabase reachability; no secrets |
+| `GET` | `/healthz`, `/readyz`, `/api/v1/health/*` | — | Safe liveness & readiness probes; no secrets |
 | `GET` | `/api/v1/me` | 🔒 | Profile + short-lived signed avatar URL |
+| `GET` / `DELETE` | `/api/v1/me/usage`, `/api/v1/me` | 🔒 | Monthly quota meter / confirmed account deletion & bucket sweep |
 | `PATCH` | `/api/v1/me` | 🔒 | `display_name`, `username`, `bio`, `preferences` |
 | `POST` / `DELETE` | `/api/v1/me/avatar` | 🔒 | Magic-byte check → WebP 256 px, EXIF stripped |
 | `POST` | `/api/v1/sources/upload` | 🔒 | Upload PDF/JPEG/PNG/WebP (`20 MB` max); magic-byte checked, EXIF stripped |
@@ -399,7 +414,7 @@ All responses use one envelope:
 | `GET` | `/api/v1/notes/:noteId/versions/:versionId` | 🔒 | Preview specific historical version |
 | `POST` | `/api/v1/notes/:noteId/restore/:versionId` | 🔒 | Non-destructive restore (keeps unsnapshotted draft first) |
 | `PUT` | `/api/v1/notes/:noteId/draft` | 🔒 | Autosave draft with optimistic revision (`409 DRAFT_CONFLICT`) |
-| `POST` | `/api/v1/notes/:noteId/exports` | 🔒 | Render Full scene, single frame (`scope: "frame"`), or multi-slide `.zip` archive (`PNG`/`SVG`/`excalidraw`) |
+| `POST` | `/api/v1/notes/:noteId/exports` | 🔒 | Render Full scene, `frame`, `selection` (`elementIds <= 200`), or `.zip` (`PNG`/`SVG`/`excalidraw`) |
 | `GET` | `/api/v1/exports/:exportId` | 🔒 | Export status and short-lived signed download URL |
 | `GET` | `/api/v1/notes/:noteId/study` | 🔒 | Load persisted quizzes, flashcard deck + mastery stats, and revision sheet |
 | `POST` | `/api/v1/notes/:noteId/explain` | 🔒 | Contextual explanation for selected canvas element(s) or section |
@@ -408,6 +423,8 @@ All responses use one envelope:
 | `POST` | `/api/v1/notes/:noteId/revision` | 🔒 | Generate/refresh structured Markdown revision cheat sheet (`revision_sheet`) |
 | `POST` | `/api/v1/notes/:noteId/ask` | 🔒 | Grounded note Q&A returning cited `sectionIds` and `pageRefs` |
 | `POST` | `/api/v1/notes/:noteId/sections/:sectionId/regenerate` | 🔒 | Snapshot pre-regen backup version, regenerate one section with custom instruction, splice cleanly |
+| `GET` | `/api/v1/admin/jobs/:jobId` | 🔒 | Redacted operator job metadata lookup (`admin` role or `ADMIN_USER_IDS`; `403` otherwise) |
+| `GET` | `/api/v1/admin/metrics` | 🔒 | Aggregated PRD §14.1 telemetry (`<= 90d` window; `admin` role or `ADMIN_USER_IDS`; `403` otherwise) |
 
 Unknown, malformed and other users' job IDs all return the **same 404**.
 
@@ -485,6 +502,7 @@ Visualizer/
 │   │   │   ├── generation/   progress, workspace, lazy Excalidraw canvas
 │   │   │   ├── notes/        LibraryPage, NoteReadPage, NoteEditorPage, NotePresentPage, study/, VersionHistory, ExportDialog
 │   │   │   ├── profile/      profile, avatar, settings, preferences pages
+│   │   │   ├── admin/        AdminMetricsPage (PRD §14.1 launch metrics)
 │   │   │   └── marketing/    landing, features, legal, 404
 │   │   ├── hooks/            useProfile, useGenerationJob, useNotes, useAutosave
 │   │   └── lib/              api client, SSE parser, schemas, theme, autosave, libraryFilters, frames, supabase
@@ -493,16 +511,21 @@ Visualizer/
 │   │   │   ├── generation/       queue, event bus, job store, pipeline, service
 │   │   │   ├── notes/            repository, service, renderer, zipArchive, noteFiles, errors
 │   │   │   ├── controllers/  routes/  middleware/  schemas/  services/
-│   │   │   └── app.js · server.js
+│   │   │   └── app.js · server.js · worker.js
 │   │   ├── scripts/              live smoke tests
 │   │   ├── tests/                Vitest + Supertest
 │   │   └── worker/               generation worker (@visualify/worker)
-│   │       └── src/              Gemini planner, schemas, adapters, CLI renderer
+│   │       ├── eval/             30-fixture quality evaluation set (prompts, PDFs, images)
+│   │       └── src/              Gemini planner, schemas, adapters, semaphore, CLI renderer
 │   ├── supabase/
-│   │   ├── migrations/           0001 profiles · 0002 avatars · 0003 generation_jobs · 0004 notes/versions/exports · 0005 note buckets · 0006 source_files · 0007 source-files bucket · 0008 learning_companion
-│   │   └── tests/                PGlite + live RLS suites
-├── tests/e2e/                Playwright specs + API mocks
-└── docs/                     phase reports, decisions, screenshots
+│   │   ├── migrations/           0001..0010 (profiles, jobs, notes, sources, companion, hardening, closeout)
+│   │   └── tests/                PGlite (68) + live RLS suites (22)
+├── tests/e2e/                Playwright specs (79) + Axe WCAG 2 AA + screenshots
+├── docs/                     phase-1..6 reports, eval/, operations/runbook.md, screenshots
+├── Dockerfile · render.yaml  Single multi-stage split-role deployment (`api`, `worker`, Redis)
+├── scripts/lint.js           syntax, pinned dependency & frontend secret scan
+├── .github/workflows/ci.yml  GitHub Actions CI pipeline + Docker build & smoke test
+└── vercel.json               production SPA CSP hash & security headers
 ```
 
 </details>
@@ -516,9 +539,10 @@ Visualizer/
 - [x] **Phase 2**: Prompt-to-visual MVP: async jobs, SSE progress, cancel/retry, visual workspace
 - [x] **Phase 3**: Notes library, autosave, version history, PNG/SVG/`.excalidraw` export, Light/Dark theme *(live RLS `0001`–`0005` passing `16/16`)*
 - [x] **Phase 4**: PDF & image inputs, Excalidraw diagram binding/palette upgrade & UI/UX polish *(live RLS `0001`–`0007` passing `18/18`)*
-- [x] **Phase 5**: Learning companion: multi-frame presentation mode, explain-this-node, quizzes, flashcards, revision sheet, note Q&A, section regeneration & `.zip` export *(offline & E2E verified; apply `0008` for live RLS)*
-- [ ] **Phase 6**: Launch hardening: quotas, monitoring, abuse controls, staging + production
-- [ ] **Phase 7**: Expansion: source Q&A, sharing, collaboration
+- [x] **Phase 5**: Learning companion: multi-frame presentation mode, explain-this-node, quizzes, flashcards, revision sheet, note Q&A, section regeneration & `.zip` export *(live RLS `20/21`)*
+- [x] **Phase 6**: Launch hardening: quotas, BullMQ/Redis, selection export, account deletion, CSP, Docker/CI, load testing & accessibility *(live RLS `21/22` with `0009` live)*
+- [x] **Phase 6.5**: Launch close-out: single-image split roles (`api`/`worker`), 30-fixture AI quality eval set, quota refunds, zero-PII `product_events` + admin metrics (`apply 0010 for 22/22 live`)
+- [ ] **Phase 7**: Expansion: source Q&A, sharing, collaboration *(gated by PRD §14 metrics)*
 
 ---
 
@@ -527,6 +551,9 @@ Visualizer/
 | Document | What's inside |
 |:--|:--|
 | [`PRD.MD`](PRD.MD) | Full product requirements, Phases 0–7 |
+| [`docs/phase-6/phase-6.5-closeout-report.md`](docs/phase-6/phase-6.5-closeout-report.md) | Phase 6.5 launch close-out, model eval decision, split-role architecture & PRD §18.3 checklist |
+| [`docs/phase-6/phase-6-report.md`](docs/phase-6/phase-6-report.md) | Phase 6 launch hardening, route security audit & PRD §18.3 launch checklist |
+| [`docs/operations/runbook.md`](docs/operations/runbook.md) | Operations runbook, alerts, backup/restore & job-ID support workflow |
 | [`docs/phase-5/phase-5-report.md`](docs/phase-5/phase-5-report.md) | Phase 5 multi-frame scenes, presentation mode, study companion, section regeneration & verification |
 | [`docs/phase-4/phase-4-report.md`](docs/phase-4/phase-4-report.md) | Phase 4 PDF/image inputs, Excalidraw diagram upgrade, UI/UX polish & verification |
 | [`docs/phase-3/phase-3-report.md`](docs/phase-3/phase-3-report.md) | Phase 3 library, autosave, versions, exports, Dark mode & verification |

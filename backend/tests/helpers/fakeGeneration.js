@@ -73,14 +73,14 @@ export class InMemoryJobStore {
     if (this.fail[op]) throw Object.assign(new Error(`${op} failed`), { status: 502, code: "DATABASE_ERROR", expose: true });
   }
 
-  async insertJob({ ownerId, inputType = "prompt", inputText = null, sourceFileId = null, pageRange = null, settings, retryOf = null, attemptCount = 1 }) {
+  async insertJob({ id = null, ownerId, inputType = "prompt", inputText = null, sourceFileId = null, pageRange = null, settings, retryOf = null, attemptCount = 1 }) {
     this.#maybeFail("insert");
     if ([...this.rows.values()].some((r) => r.owner_id === ownerId && ACTIVE_STATUSES.includes(r.status))) {
       throw new ActiveJobExistsError();
     }
     const now = new Date().toISOString();
     const row = {
-      id: randomUUID(),
+      id: id ?? randomUUID(),
       owner_id: ownerId,
       input_type: inputType,
       input_text: inputText,
@@ -143,6 +143,11 @@ export class InMemoryJobStore {
     return this.getJob(args);
   }
 
+  async getJobForRunner(jobId) {
+    const row = this.rows.get(jobId);
+    return row ? structuredClone(row) : null;
+  }
+
   async findActiveJob(ownerId) {
     const row = [...this.rows.values()].find((r) => r.owner_id === ownerId && ACTIVE_STATUSES.includes(r.status));
     return row ? structuredClone(row) : null;
@@ -178,6 +183,25 @@ export class InMemoryJobStore {
     const full = { id: randomUUID(), input_type: "prompt", settings: {}, stage: null, progress: 0, warnings: [], attempt_count: 1, retry_of: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString(), ...row };
     this.rows.set(full.id, full);
     return full;
+  }
+
+  async getRedactedJobForAdmin(jobId) {
+    const row = this.rows.get(jobId);
+    if (!row) return null;
+    return {
+      id: row.id,
+      owner_id: row.owner_id,
+      input_type: row.input_type,
+      status: row.status,
+      stage: row.stage ?? null,
+      progress: row.progress ?? 0,
+      attempt_count: row.attempt_count ?? 1,
+      model_id: row.model_id ?? null,
+      error_code: row.error_code ?? null,
+      created_at: row.created_at ?? null,
+      started_at: row.started_at ?? null,
+      finished_at: row.finished_at ?? null,
+    };
   }
 }
 
@@ -246,12 +270,12 @@ export function createFakePipelineDeps(store = null) {
   return deps;
 }
 
-export function createTestGenerationStack({ config, logger, enabled = true, concurrency = 2, heartbeatMs = 50, generationOverrides = {}, supabaseState = null } = {}) {
+export function createTestGenerationStack({ config, logger, enabled = true, concurrency = 2, heartbeatMs = 50, generationOverrides = {}, supabaseState = null, usageService = null, analyticsService = null } = {}) {
   const store = new InMemoryJobStore(supabaseState);
   const bus = new JobEventBus();
   const queue = new InProcessQueue({ concurrency, logger });
   const pipelineDeps = createFakePipelineDeps(store);
   const cfg = { ...config, generation: { ...config.generation, enabled, ...generationOverrides } };
-  const service = createGenerationService({ config: cfg, store, queue, bus, pipelineDeps, logger });
+  const service = createGenerationService({ config: cfg, store, queue, bus, pipelineDeps, usageService, analyticsService, logger });
   return { service, store, bus, queue, pipelineDeps, heartbeatMs };
 }

@@ -107,6 +107,7 @@ export async function apiRequest(path, { method = "GET", body, formData, signal 
 
 export const meApi = {
   get: ({ signal } = {}) => apiRequest("/me", { signal }).then((d) => d.profile),
+  usage: ({ signal } = {}) => apiRequest("/me/usage", { signal }).then((d) => d.usage),
   update: (patch) => apiRequest("/me", { method: "PATCH", body: patch }).then((d) => d.profile),
   uploadAvatar: (file) => {
     const formData = new FormData();
@@ -114,6 +115,7 @@ export const meApi = {
     return apiRequest("/me/avatar", { method: "POST", formData }).then((d) => d.profile);
   },
   removeAvatar: () => apiRequest("/me/avatar", { method: "DELETE" }).then((d) => d.profile),
+  deleteAccount: (body) => apiRequest("/me", { method: "DELETE", body }),
 };
 
 const jobPath = (jobId) => `/generations/${encodeURIComponent(jobId)}`;
@@ -187,4 +189,14 @@ export const foldersApi = {
   create: (body) => apiRequest("/folders", { method: "POST", body }).then((d) => d.folder),
   update: (id, patch) => apiRequest(`/folders/${encodeURIComponent(id)}`, { method: "PATCH", body: patch }).then((d) => d.folder),
   remove: (id) => apiRequest(`/folders/${encodeURIComponent(id)}`, { method: "DELETE" }),
+};
+
+export const adminApi = {
+  metrics: ({ from, to, signal } = {}) => {
+    const qs = new URLSearchParams();
+    if (from) qs.set("from", from);
+    if (to) qs.set("to", to);
+    const suffix = qs.toString() ? `?${qs.toString()}` : "";
+    return apiRequest(`/admin/metrics${suffix}`, { signal }).then((d) => d.report);
+  },
 };

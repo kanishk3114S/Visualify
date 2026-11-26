@@ -28,7 +28,22 @@ export const QuizQuestionSchema = z
     concept: z.string().trim().max(120).default(""),
     sourceRefs: z.array(SourceRefSchema).max(5).default([]),
   })
-  .strict();
+  .strict()
+  .superRefine((q, ctx) => {
+    const seen = new Set();
+    for (const opt of q.options) {
+      const norm = opt.trim().toLowerCase().replace(/\s+/g, " ");
+      if (seen.has(norm)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["options"],
+          message: "Quiz options must be distinct.",
+        });
+        return;
+      }
+      seen.add(norm);
+    }
+  });
 
 export const QuizOutputSchema = z
   .object({

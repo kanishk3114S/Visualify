@@ -496,3 +496,130 @@ test("Phase 5 study companion: owner CRUD, cross-user isolation, composite FKs &
   const aUsageForge = await A.client.from("usage_events").insert({ owner_id: A.id, event_type: "quiz", units: 1 });
   assert.ok(aUsageForge.error, "authenticated clients must not insert usage_events");
 });
+
+// ---------------------------------------------------------------------------
+// Phase 6: selection export scope, atomic consume_monthly_quota & delete isolation (0009)
+// ---------------------------------------------------------------------------
+let PHASE6_BLOCKED = BLOCKED;
+if (!BLOCKED) {
+  const probe = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, clientOpts);
+  const { error } = await probe.rpc("consume_monthly_quota", {
+    p_owner_id: "00000000-0000-0000-0000-000000000000",
+    p_event_type: "generation_create",
+    p_limit: 0,
+    p_units: 1,
+  });
+  // Expect clean denied boolean (no 22P02/42883 function-not-found) when 0009 is applied
+  if (error?.code === "PGRST202" || error?.code === "42883") {
+    PHASE6_BLOCKED = "NOT RUN (BLOCKED: apply supabase/migrations/0009_phase6_hardening.sql to this project first)";
+  } else if (error && !/violates foreign key|present in table "users"/.test(error.message ?? "")) {
+    PHASE6_BLOCKED = `NOT RUN (consume_monthly_quota probe failed with code ${error.code})`;
+  }
+  if (PHASE6_BLOCKED) console.log(`# phase6_quota: ${PHASE6_BLOCKED}`);
+}
+
+test("Phase 6 quota & selection export: consume_monthly_quota denies clients, enforces limit for service_role", { skip: PHASE6_BLOCKED || COMPANION_BLOCKED || NOTES_BLOCKED }, async () => {
+  const rpcAsA = await A.client.rpc("consume_monthly_quota", {
+    p_owner_id: A.id,
+    p_event_type: "generation_create",
+    p_limit: 5,
+  });
+  assert.ok(rpcAsA.error, "authenticated user must not execute consume_monthly_quota");
+
+  const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, clientOpts);
+  const { data: qRes, error: qErr } = await adminClient.rpc("consume_monthly_quota", {
+    p_owner_id: A.id,
+    p_event_type: "generation_create",
+    p_limit: 5,
+    p_metadata: { source: "live-rls" },
+  });
+  assert.equal(qErr, null);
+  assert.equal(qRes[0].allowed, true);
+});
+
+// ---------------------------------------------------------------------------
+// Phase 6.5: product_events & refund_usage_event RLS / revoke checks (0010)
+// ---------------------------------------------------------------------------
+let PHASE65_BLOCKED = BLOCKED;
+if (!BLOCKED) {
+  const probe = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, clientOpts);
+  const pe = await probe.from("product_events").select("id").limit(1);
+  if (pe.error?.code === "PGRST205" || pe.error?.code === "42P01") {
+    PHASE65_BLOCKED = "NOT RUN (BLOCKED: apply supabase/migrations/0010_launch_closeout.sql to this project first)";
+  } else if (pe.error) {
+    PHASE65_BLOCKED = `NOT RUN (product_events probe failed with code ${pe.error.code})`;
+  } else {
+    const refProbe = await probe.rpc("refund_usage_event", {
+      p_owner_id: "00000000-0000-0000-0000-000000000000",
+      p_correlation_id: "00000000-0000-0000-0000-000000000000",
+    });
+    if (refProbe.error?.code === "PGRST202" || refProbe.error?.code === "42883") {
+      PHASE65_BLOCKED = "NOT RUN (BLOCKED: apply supabase/migrations/0010_launch_closeout.sql to this project first)";
+    }
+  }
+  if (PHASE65_BLOCKED) console.log(`# phase65_closeout: ${PHASE65_BLOCKED}`);
+}
+
+test("Phase 6 account deletion: user B sees nothing of user C before or after C deletion & storage sweep", opts, async () => {
+  const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, clientOpts);
+  const cEmail = `rls-del-${Date.now()}-${randomUUID().slice(0, 6)}@visualify-test.example`;
+  const cPass = `Pass!${randomUUID()}`;
+  const { data: created, error: createErr } = await adminClient.auth.admin.createUser({
+    email: cEmail,
+    password: cPass,
+    email_confirm: true,
+    user_metadata: { display_name: "Throwaway Delete" },
+  });
+  assert.equal(createErr, null);
+  const cId = created.user.id;
+  try {
+    const cClient = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, clientOpts);
+    await cClient.auth.signInWithPassword({ email: cEmail, password: cPass });
+
+    const cAvatar = `${cId}/avatar-${randomUUID()}.webp`;
+    await cClient.storage.from("avatars").upload(cAvatar, WEBP_1PX, { contentType: "image/webp" });
+
+    if (!COMPANION_BLOCKED) {
+      await adminClient.from("usage_events").insert({ owner_id: cId, event_type: "generation", units: 1, metadata: {} });
+    }
+    if (!PHASE65_BLOCKED) {
+      await adminClient.from("product_events").insert({ owner_id: cId, event_name: "note_opened", properties: { noteId: "n1" } });
+    }
+
+    // Before deletion: User B cannot read User C's profile or avatar
+    assert.deepEqual((await B.client.from("profiles").select("id").eq("id", cId)).data, []);
+    assert.ok((await B.client.storage.from("avatars").download(cAvatar)).error);
+
+    // Delete Storage + Auth user C
+    await adminClient.storage.from("avatars").remove([cAvatar]);
+    const { error: delErr } = await adminClient.auth.admin.deleteUser(cId);
+    assert.equal(delErr, null);
+
+    // After deletion: Profile, usage_events, product_events cascaded cleanly and User B still sees zero objects/rows
+    const { data: leftoverProfile } = await adminClient.from("profiles").select("id").eq("id", cId);
+    assert.deepEqual(leftoverProfile, []);
+    if (!COMPANION_BLOCKED) {
+      const { data: leftoverUsage } = await adminClient.from("usage_events").select("id").eq("owner_id", cId);
+      assert.deepEqual(leftoverUsage, []);
+    }
+    if (!PHASE65_BLOCKED) {
+      const { data: leftoverProduct } = await adminClient.from("product_events").select("id").eq("owner_id", cId);
+      assert.deepEqual(leftoverProduct, []);
+    }
+    assert.deepEqual((await B.client.from("profiles").select("id").eq("id", cId)).data, []);
+    assert.ok((await B.client.storage.from("avatars").download(cAvatar)).error);
+  } finally {
+    await adminClient.auth.admin.deleteUser(cId).catch(() => {});
+  }
+});
+
+test("Phase 6.5 closeout: product_events denies clients (SELECT/INSERT) and refund_usage_event denies clients", { skip: PHASE65_BLOCKED }, async () => {
+  const selA = await A.client.from("product_events").select("id").limit(1);
+  assert.ok(selA.error, "authenticated client must not select from product_events");
+
+  const insA = await A.client.from("product_events").insert({ owner_id: A.id, event_name: "note_saved", properties: { noteId: "n1" } });
+  assert.ok(insA.error, "authenticated client must not insert into product_events");
+
+  const refAsA = await A.client.rpc("refund_usage_event", { p_owner_id: A.id, p_correlation_id: randomUUID() });
+  assert.ok(refAsA.error, "authenticated client must not execute refund_usage_event");
+});

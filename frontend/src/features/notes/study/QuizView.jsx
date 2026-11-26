@@ -6,11 +6,14 @@ import { Badge, Card } from "../../../components/Layout.jsx";
 import { FormAlert } from "../../../components/Field.jsx";
 import { SegmentedControl } from "../../../components/SegmentedControl.jsx";
 import { useCreateQuiz, useSubmitQuiz } from "../../../hooks/useNotes.js";
+import { useUsage } from "../../../hooks/useProfile.js";
 import { SourceRefChips } from "../../generation/VisualWorkspace.jsx";
 
 export function QuizView({ noteId, quiz, onFocusSection }) {
   const createQuiz = useCreateQuiz();
   const submitQuiz = useSubmitQuiz();
+  const { data: usage } = useUsage();
+  const quotaReached = Boolean(usage && usage.remaining <= 0);
   const [difficulty, setDifficulty] = useState(quiz?.difficulty ?? "mixed");
   const [answers, setAnswers] = useState(() => quiz?.answers ?? {});
   const [error, setError] = useState(null);
@@ -66,7 +69,7 @@ export function QuizView({ noteId, quiz, onFocusSection }) {
                 { value: "challenging", label: "Challenging" },
               ]}
             />
-            <Button size="sm" onClick={handleGenerate} loading={createQuiz.isPending} loadingText="Creating quiz…" data-testid="generate-quiz-btn">
+            <Button size="sm" onClick={handleGenerate} loading={createQuiz.isPending} disabled={quotaReached} loadingText="Creating quiz…" data-testid="generate-quiz-btn">
               {quiz ? <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" /> : <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />}
               {quiz ? "New quiz" : "Generate quiz"}
             </Button>
@@ -86,6 +89,7 @@ export function QuizView({ noteId, quiz, onFocusSection }) {
       </Card>
 
       <FormAlert>{error}</FormAlert>
+      {quotaReached && <FormAlert>Monthly AI quota reached ({usage.used} / {usage.limit}).</FormAlert>}
 
       {!quiz ? (
         <Card className="p-8 text-center">

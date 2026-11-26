@@ -33,25 +33,33 @@ export async function findProfile(db, userId) {
 }
 
 /**
- * Returns the caller's profile, creating it if the signup trigger never ran
- * (e.g. account predates the migration). RLS restricts the insert to id = auth.uid().
+ * Same as getOrCreateProfile, also returning `{ profile, created }` so the caller
+ * can emit `auth_signup_completed` cleanly once on first profile creation.
  */
-export async function getOrCreateProfile(db, user) {
+export async function getOrCreateProfileWithMeta(db, user) {
   const existing = await findProfile(db, user.id);
-  if (existing) return existing;
+  if (existing) return { profile: existing, created: false };
 
   const { data, error } = await db
     .from("profiles")
     .insert({ id: user.id, display_name: deriveDisplayName(user) })
     .select(PROFILE_COLUMNS)
     .single();
-  if (!error) return data;
+  if (!error) return { profile: data, created: true };
   if (error.code === PG_UNIQUE_VIOLATION) {
-    // Lost a race with a concurrent request/trigger - the row now exists.
     const raced = await findProfile(db, user.id);
-    if (raced) return raced;
+    if (raced) return { profile: raced, created: false };
   }
   throw databaseError(error);
+}
+
+/**
+ * Returns the caller's profile, creating it if the signup trigger never ran
+ * (e.g. account predates the migration). RLS restricts the insert to id = auth.uid().
+ */
+export async function getOrCreateProfile(db, user) {
+  const { profile } = await getOrCreateProfileWithMeta(db, user);
+  return profile;
 }
 
 /**
@@ -85,7 +93,7 @@ export function mergePreferences(current, patch) {
 }
 
 /** Public shape returned by the API. avatar_path (internal storage key) is not exposed. */
-export function toProfileDto(row, { email, avatar }) {
+export function toProfileDto(row, { email, avatar, isAdmin = false }) {
   return {
     id: row.id,
     email: email ?? null,
@@ -95,6 +103,7 @@ export function toProfileDto(row, { email, avatar }) {
     preferences: row.preferences,
     avatar_url: avatar?.url ?? null,
     avatar_url_expires_at: avatar?.expiresAt ?? null,
+    isAdmin: Boolean(isAdmin),
     created_at: row.created_at,
     updated_at: row.updated_at,
   };

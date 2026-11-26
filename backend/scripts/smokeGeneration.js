@@ -10,7 +10,14 @@
  * API key, and the prompt is a fixed public example.
  */
 import { loadEnvFiles } from "../src/config/env.js";
-import { loadWorkerEnv, validateExcalidrawScene } from "@visualify/worker";
+import {
+  DEFAULT_GEMINI_MODEL,
+  getDefaultFallbackModels,
+  getRenderConcurrency,
+  loadWorkerEnv,
+  parseFallbackModels,
+  validateExcalidrawScene,
+} from "@visualify/worker";
 import { createPipelineDeps } from "../src/generation/index.js";
 import { createGenerationService, toJobDto } from "../src/generation/generationService.js";
 import { JobEventBus } from "../src/generation/eventBus.js";
@@ -26,11 +33,14 @@ if (!key || /YOUR_/i.test(key)) {
   process.exit(0);
 }
 
+const primaryModel = (process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL).trim();
 const config = {
   generation: {
     enabled: true,
-    model: process.env.GEMINI_MODEL || "gemini-3.5-flash",
+    model: primaryModel,
+    fallbackModels: parseFallbackModels(process.env.GEMINI_FALLBACK_MODELS, primaryModel) ?? getDefaultFallbackModels(primaryModel),
     maxConcurrency: 1,
+    renderConcurrency: getRenderConcurrency(process.env.RENDER_CONCURRENCY),
     plannerTimeoutMs: 120_000,
     jobTimeoutMs: 300_000,
     browserPath: process.env.EXCALIDRAW_BROWSER_PATH?.trim() || undefined,

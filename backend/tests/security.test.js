@@ -38,7 +38,7 @@ describe("CORS allowlist", () => {
       .set("Access-Control-Request-Headers", "authorization,content-type");
     expect(res.status).toBe(204);
     expect(res.headers["access-control-allow-origin"]).toBe(ALLOWED_ORIGIN);
-    expect(res.headers["access-control-allow-methods"]).toBe("GET,POST,PATCH,DELETE");
+    expect(res.headers["access-control-allow-methods"]).toBe("GET,POST,PATCH,PUT,DELETE");
     expect(res.headers["access-control-allow-headers"]).toBe("Authorization,Content-Type,X-Request-Id");
     expect(res.headers["access-control-allow-credentials"]).toBeUndefined();
     expect(res.headers.vary).toMatch(/Origin/);

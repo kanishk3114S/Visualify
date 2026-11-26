@@ -4,9 +4,12 @@ import { Button } from "../../../components/Button.jsx";
 import { Card } from "../../../components/Layout.jsx";
 import { FormAlert } from "../../../components/Field.jsx";
 import { useCreateRevision } from "../../../hooks/useNotes.js";
+import { useUsage } from "../../../hooks/useProfile.js";
 
 export function RevisionSheetView({ noteId, revisionGuide }) {
   const createRevision = useCreateRevision();
+  const { data: usage } = useUsage();
+  const quotaReached = Boolean(usage && usage.remaining <= 0);
   const [revealed, setRevealed] = useState({});
   const [error, setError] = useState(null);
 
@@ -26,7 +29,7 @@ export function RevisionSheetView({ noteId, revisionGuide }) {
             <h2 className="text-base font-semibold text-stone-900">Revision sheet</h2>
             <p className="text-xs text-stone-600">A condensed cheat sheet with key terms, common pitfalls, and a self-check.</p>
           </div>
-          <Button size="sm" onClick={handleGenerate} loading={createRevision.isPending} loadingText="Building sheet…" data-testid="generate-revision-btn">
+          <Button size="sm" onClick={handleGenerate} loading={createRevision.isPending} disabled={quotaReached} loadingText="Building sheet…" data-testid="generate-revision-btn">
             {revisionGuide ? <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" /> : <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />}
             {revisionGuide ? "Refresh sheet" : "Build revision sheet"}
           </Button>

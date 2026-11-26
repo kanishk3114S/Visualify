@@ -3,7 +3,7 @@ import { CheckCircle2, Circle, FileImage, FileText, GraduationCap, Sparkles, Sta
 import { Badge, Card, PageHeader } from "../../components/Layout.jsx";
 import { ButtonLink } from "../../components/Button.jsx";
 import { Spinner } from "../../components/Spinner.jsx";
-import { useProfile } from "../../hooks/useProfile.js";
+import { useProfile, useUsage } from "../../hooks/useProfile.js";
 import { useNotesQuery } from "../../hooks/useNotes.js";
 import { DEFAULT_FILTERS, toNotesQuery } from "../../lib/libraryFilters.js";
 import { formatRelative } from "../../lib/format.js";
@@ -32,7 +32,7 @@ function ChecklistItem({ done, children, action }) {
 }
 
 const ROADMAP = [
-  { icon: GraduationCap, title: "Learning tools", text: "Presentation mode, explain-this-element, quizzes and flashcards." },
+  { icon: GraduationCap, title: "Phase 7 sharing & study spaces", text: "Read-only share links, curated classroom decks, and source-grounded Q&A across collections." },
 ];
 
 const RECENT_QUERY = toNotesQuery({ ...DEFAULT_FILTERS, sort: "updated_at" }, { limit: 5 });
@@ -74,6 +74,7 @@ function NoteList({ query, empty, testId }) {
 export function DashboardPage() {
   const { user } = useAuth();
   const { data: profile, isPending, isError, error, refetch } = useProfile();
+  const usageQuery = useUsage();
   const recent = useNotesQuery(RECENT_QUERY);
   const favorites = useNotesQuery(FAVORITES_QUERY);
 
@@ -82,6 +83,9 @@ export function DashboardPage() {
   const hasAvatar = Boolean(profile?.avatar_url);
   const noteCount = recent.data?.total ?? 0;
   const hasNotes = noteCount > 0;
+  const usage = usageQuery.data;
+  const usagePct = usage?.limit ? Math.min(100, Math.round((usage.used / usage.limit) * 100)) : 0;
+  const quotaReached = Boolean(usage && usage.remaining <= 0);
 
   return (
     <>
@@ -120,6 +124,58 @@ export function DashboardPage() {
           <Link to="/app/notes" className="mt-4 inline-block text-sm font-medium text-accent-700 underline-offset-2 hover:text-accent-800 hover:underline">
             Open library →
           </Link>
+        </Card>
+
+        <Card className="p-6 md:col-span-5" aria-labelledby="usage-meter-heading" data-testid="usage-meter">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 id="usage-meter-heading" className="text-base font-semibold text-stone-900">
+                Usage this month
+              </h2>
+              <p className="text-xs text-stone-600">
+                {usage?.resetsAt
+                  ? `Resets on ${new Date(usage.resetsAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })} (UTC)`
+                  : "Monthly AI visual generations and study companion allowance"}
+              </p>
+            </div>
+            <Badge tone={quotaReached ? "soon" : "accent"} data-testid="usage-meter-badge">
+              {usageQuery.isPending ? "Loading…" : `${usage?.used ?? 0} / ${usage?.limit ?? 50} used`}
+            </Badge>
+          </div>
+          <div
+            className="mt-3 h-2 w-full overflow-hidden rounded-full bg-stone-200"
+            role="progressbar"
+            aria-label="Monthly AI quota usage"
+            aria-valuenow={usage?.used ?? 0}
+            aria-valuemin={0}
+            aria-valuemax={usage?.limit ?? 50}
+          >
+            <div
+              className={quotaReached ? "h-full rounded-full bg-amber-600 transition-all duration-200" : "h-full rounded-full bg-accent-700 transition-all duration-200"}
+              style={{ width: `${usagePct}%` }}
+            />
+          </div>
+          {usage?.breakdown && (
+            <dl className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-xs text-stone-600">
+              <div>
+                <dt className="inline">Generations: </dt>
+                <dd className="inline font-semibold tabular-nums text-stone-900">{usage.breakdown.generations ?? 0}</dd>
+              </div>
+              <div>
+                <dt className="inline">Study companion: </dt>
+                <dd className="inline font-semibold tabular-nums text-stone-900">{usage.breakdown.companion ?? 0}</dd>
+              </div>
+              <div>
+                <dt className="inline">Exports: </dt>
+                <dd className="inline font-semibold tabular-nums text-stone-900">{usage.breakdown.exports ?? 0}</dd>
+              </div>
+            </dl>
+          )}
+          {quotaReached && (
+            <p className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+              You have reached this month&apos;s AI generation quota. Saved notes, editing, presentation mode, and exports remain available.
+            </p>
+          )}
         </Card>
 
         <Card className="p-6 md:col-span-3" aria-labelledby="recent-notes">

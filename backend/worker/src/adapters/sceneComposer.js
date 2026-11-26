@@ -462,6 +462,56 @@ export function filterSceneToFrame(sceneJson, frameOrSectionId, learningPlan = n
 }
 
 /**
+ * Returns a standalone clean scene restricted to a validated subset of element IDs
+ * (FR-EXP-05 selection export). Pulls bound container text children automatically
+ * and prunes dangling bindings/frameIds. Returns null when no element matches.
+ */
+export function filterSceneToElementIds(sceneJson, elementIds = [], { maxElements = 200 } = {}) {
+  if (!Array.isArray(elementIds) || elementIds.length === 0) return null;
+  const raw = (sceneJson?.elements ?? []).filter((el) => el && !el.isDeleted);
+  const byId = new Map(raw.map((el) => [el.id, el]));
+  const requested = elementIds.slice(0, maxElements);
+  const keep = new Set();
+
+  for (const id of requested) {
+    const el = byId.get(id);
+    if (!el || el.type === "frame") continue;
+    keep.add(el.id);
+    if (Array.isArray(el.boundElements)) {
+      for (const b of el.boundElements) {
+        if (b?.type === "text" && b?.id && byId.has(b.id)) keep.add(b.id);
+      }
+    }
+    if (el.containerId && byId.has(el.containerId)) {
+      keep.add(el.containerId);
+    }
+  }
+  if (keep.size === 0) return null;
+
+  const filtered = raw
+    .filter((el) => keep.has(el.id) && el.type !== "frame")
+    .map((el) => ({
+      ...el,
+      frameId: null,
+      ...(Array.isArray(el.boundElements)
+        ? { boundElements: el.boundElements.filter((b) => b?.id && keep.has(b.id)) }
+        : {}),
+      ...(el.startBinding?.elementId && !keep.has(el.startBinding.elementId) ? { startBinding: null } : {}),
+      ...(el.endBinding?.elementId && !keep.has(el.endBinding.elementId) ? { endBinding: null } : {}),
+    }));
+
+  if (filtered.length === 0) return null;
+  return {
+    type: "excalidraw",
+    version: 2,
+    source: sceneJson?.source ?? "visualify",
+    elements: filtered,
+    appState: { ...(sceneJson?.appState ?? {}), viewBackgroundColor: sceneJson?.appState?.viewBackgroundColor ?? "#ffffff" },
+    files: {},
+  };
+}
+
+/**
  * Replaces only one section (`${sectionId}__*` / `${sectionId}__frame`) inside an
  * existing scene while preserving edits to other sections and reflowing elements below.
  */

@@ -40,14 +40,19 @@ export function notFoundHandler(_req, res) {
  * Global error handler. Responses NEVER include stack traces, SQL/provider
  * errors, file paths or library names; full details go to server logs only.
  */
-export function errorHandler(err, req, res, _next) {
-  const [status, code, message, details] = classify(err);
-  const log = req.log ?? console;
-  if (status >= 500) {
-    log.error({ err, code, userId: req.user?.id }, "request failed");
-  } else {
-    log.warn({ code, status, userId: req.user?.id, cause: err?.cause?.message }, "request rejected");
-  }
-  if (res.headersSent) return;
-  sendError(res, status, code, message, details);
+export function createErrorHandler({ sentry = null } = {}) {
+  return function errorHandler(err, req, res, _next) {
+    const [status, code, message, details] = classify(err);
+    const log = req.log ?? console;
+    if (status >= 500) {
+      log.error({ err, code, userId: req.user?.id }, "request failed");
+      sentry?.captureException?.(err, { requestId: req.id, userId: req.user?.id, code });
+    } else {
+      log.warn({ code, status, userId: req.user?.id, cause: err?.cause?.message }, "request rejected");
+    }
+    if (res.headersSent) return;
+    sendError(res, status, code, message, details);
+  };
 }
+
+export const errorHandler = createErrorHandler();

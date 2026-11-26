@@ -42,6 +42,7 @@ export class SupabaseJobStore {
   }
 
   async insertJob({
+    id = null,
     ownerId,
     inputType = "prompt",
     inputText = null,
@@ -54,6 +55,7 @@ export class SupabaseJobStore {
     const { data, error } = await this.admin
       .from("generation_jobs")
       .insert({
+        ...(id ? { id } : {}),
         owner_id: ownerId,
         input_type: inputType,
         input_text: inputText,
@@ -84,6 +86,18 @@ export class SupabaseJobStore {
 
   async getJobStatus({ db, ownerId, jobId }) {
     return this.getJob({ db, ownerId, jobId, columns: STATUS_COLUMNS });
+  }
+
+  /** Worker-side job lookup using service_role after dequeuing `{ jobId }` from Redis. */
+  async getJobForRunner(jobId) {
+    if (!this._admin) return null;
+    const { data, error } = await this.admin
+      .from("generation_jobs")
+      .select(JOB_COLUMNS)
+      .eq("id", jobId)
+      .maybeSingle();
+    if (error) throw dbError(error);
+    return data;
   }
 
   /** Owner-scoped read of a source file row via caller's RLS client. */
@@ -167,5 +181,17 @@ export class SupabaseJobStore {
       .select("id");
     if (failed.error) throw dbError(failed.error);
     return (cancelled.data?.length ?? 0) + (failed.data?.length ?? 0);
+  }
+
+  /** Redacted operator view (never returns prompts, scenes, plans, emails or source refs). */
+  async getRedactedJobForAdmin(jobId) {
+    if (!this._admin) return null;
+    const { data, error } = await this.admin
+      .from("generation_jobs")
+      .select("id, owner_id, input_type, status, stage, progress, attempt_count, model_id, error_code, created_at, started_at, finished_at")
+      .eq("id", jobId)
+      .maybeSingle();
+    if (error) throw dbError(error);
+    return data;
   }
 }

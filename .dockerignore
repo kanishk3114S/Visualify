@@ -1,0 +1,13 @@
+.env
+.env.*
+!.env.example
+.git
+.gitignore
+node_modules
+renders
+test-results
+playwright-report
+docs/eval/*.json
+docs/eval/*.md
+!docs/eval/rubric-template.md
+frontend/dist

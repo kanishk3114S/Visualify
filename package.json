@@ -13,20 +13,25 @@
     "backend/worker"
   ],
   "scripts": {
+    "dev": "node scripts/dev.js",
     "dev:frontend": "npm --workspace=frontend run dev",
     "dev:api": "npm --workspace=@visualify/api run dev",
     "build:frontend": "npm --workspace=frontend run build",
+    "lint": "node scripts/lint.js",
     "test": "npm --workspace=backend/worker run test && npm --workspace=@visualify/api run test && npm --workspace=@visualify/api run test:rls:sql && npm --workspace=@visualify/frontend run test",
     "test:worker": "npm --workspace=backend/worker run test",
     "test:api": "npm --workspace=@visualify/api run test",
     "test:rls:sql": "npm --workspace=@visualify/api run test:rls:sql",
     "test:rls:live": "npm --workspace=@visualify/api run test:rls:live",
+    "test:load": "npm --workspace=@visualify/api run test:load",
     "test:e2e": "playwright test",
     "spike:local": "npm --workspace=backend/worker run spike:local",
     "spike:gemini": "npm --workspace=backend/worker run spike:gemini",
+    "eval:quality": "node backend/worker/src/scripts/runEval.js",
     "test:frontend": "npm --workspace=@visualify/frontend run test",
     "smoke:generation": "npm --workspace=@visualify/api run smoke:generation",
-    "smoke:live-api": "npm --workspace=@visualify/api run smoke:live-api"
+    "smoke:live-api": "npm --workspace=@visualify/api run smoke:live-api",
+    "smoke:staging": "node scripts/smokeStaging.js"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.14.0",

@@ -3,8 +3,8 @@ function LegalPage({ title, updated, children }) {
     <article className="mx-auto max-w-3xl px-4 py-14 sm:px-6">
       <h1 className="text-3xl font-semibold tracking-tight text-stone-900">{title}</h1>
       <p className="mt-2 text-sm text-stone-500">Last updated {updated}</p>
-      <p className="mt-6 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-        Working draft for early access. It will be reviewed before Visualify launches publicly.
+      <p className="mt-6 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900" data-testid="legal-draft-notice">
+        Pre-launch draft notice: this document is awaiting formal legal counsel review before general public launch.
       </p>
       <div className="mt-8 space-y-6 text-sm leading-relaxed text-stone-700 [&_h2]:mb-2 [&_h2]:text-base [&_h2]:font-semibold [&_h2]:text-stone-900 [&_li]:ml-5 [&_li]:list-disc">
         {children}
@@ -15,36 +15,47 @@ function LegalPage({ title, updated, children }) {
 
 export function PrivacyPage() {
   return (
-    <LegalPage title="Privacy notice" updated="25 November 2026">
+    <LegalPage title="Privacy notice" updated="26 November 2026">
       <section>
-        <h2>What we collect today</h2>
+        <h2>What we collect and store</h2>
         <ul>
-          <li>Your account email address and sign-in method (email/password or Google), managed by our authentication provider, Supabase.</li>
-          <li>Profile details you choose to add: display name, username, bio and profile photo.</li>
-          <li>Basic preferences such as learning level and default export format.</li>
+          <li>Account identity (email address and sign-in provider: email/password or Google), managed by Supabase Auth.</li>
+          <li>Profile fields you choose to provide (display name, username, bio, preferences, and optional avatar image).</li>
+          <li>Study content you create or upload: prompts, uploaded PDFs/images stored in private buckets, Excalidraw scenes, note versions, drafts, quizzes, flashcards, and revision guides.</li>
         </ul>
       </section>
       <section>
-        <h2>How your data is stored</h2>
+        <h2>AI provider processing</h2>
         <ul>
-          <li>Passwords are never stored by Visualify; they are hashed by Supabase Auth.</li>
-          <li>Profile photos are re-encoded (which removes location and camera metadata) and kept in private storage. They are only shown through short-lived links to you.</li>
-          <li>Database access rules ensure each account can only read and change its own profile.</li>
+          <li>Prompts, selected PDF page text/page renders, EXIF-stripped note images, and note context used for study companion actions (Explain, Quiz, Flashcards, Revision Sheet, Ask, Section Regenerate) are transmitted server-side to Google Gemini for processing.</li>
+          <li>Raw prompts, uploaded document contents, signed URLs, and emails are never written to application error logs or analytics events.</li>
+          <li>Your study materials are not used by Visualify to train foundation models without separate explicit opt-in.</li>
         </ul>
       </section>
       <section>
-        <h2>AI processing</h2>
+        <h2>Usage metering and retention</h2>
+        <ul>
+          <li>Visualify records non-content operational usage counters (user UUID, operation type, timestamp, and non-PII unit count) in <code>usage_events</code> solely to enforce monthly quotas and measure reliability.</li>
+          <li>Signed storage links expire automatically after 5–10 minutes; uploaded images strip EXIF camera/location metadata on ingest.</li>
+          <li>Deleting a note removes its stored source/preview/export objects and note records.</li>
+        </ul>
+      </section>
+      <section>
+        <h2>Self-service account deletion</h2>
         <p>
-          Visual generation is not live yet. Before it launches, this notice will describe exactly what prompts and files
-          are sent to the AI provider. Your content will not be used to train models without separate, explicit opt-in.
+          You can permanently delete your account at any time from{" "}
+          <strong>Settings → Account → Delete account</strong> after re-authenticating and typing the confirmation phrase.
+          Account deletion sweeps all owned files from private storage buckets and cascades removal of your profile, notes,
+          versions, jobs, and study artifacts.
         </p>
       </section>
       <section>
-        <h2>Your choices</h2>
-        <p>
-          You can edit or remove your profile details and photo at any time from your profile page. Self-service account
-          deletion is planned; until then, contact the Visualify team to have your account removed.
-        </p>
+        <h2>Open items pending legal counsel sign-off</h2>
+        <ul>
+          <li>Final numeric retention schedules for operational telemetry (`usage_events`), anonymized aggregate product events, and PITR backup expiration windows.</li>
+          <li>Confirmed Google Gemini API data-processing region and paid-tier zero-data-retention DPA addendum details.</li>
+          <li>Exact statutory SLA period for secondary backup purge and regional privacy contact address prior to general public availability.</li>
+        </ul>
       </section>
     </LegalPage>
   );
@@ -52,29 +63,34 @@ export function PrivacyPage() {
 
 export function TermsPage() {
   return (
-    <LegalPage title="Terms of service" updated="25 November 2026">
+    <LegalPage title="Terms of service" updated="26 November 2026">
       <section>
-        <h2>Early access</h2>
+        <h2>Service scope and AI disclaimers</h2>
         <p>
-          Visualify is provided as an early-access service. Features may change, and some described features are not yet
-          available.
+          Visualify generates editable diagrams, quizzes, flashcards, and study summaries using automated AI models. Outputs
+          may contain inaccuracies and should be verified against authoritative course materials.
         </p>
       </section>
       <section>
-        <h2>Your account</h2>
-        <p>Keep your sign-in details secure. You are responsible for activity on your account.</p>
+        <h2>Your account, rate limits, and monthly quotas</h2>
+        <ul>
+          <li>Keep your credentials secure; you are responsible for activity performed under your account.</li>
+          <li>To ensure fair availability and control compute costs, generation and AI companion actions are subject to per-user rate limits and configurable monthly usage quotas.</li>
+        </ul>
       </section>
       <section>
         <h2>Acceptable use</h2>
         <ul>
-          <li>Don't upload content you don't have the right to use.</li>
-          <li>Don't upload unlawful, harmful or harassing content, including in profile photos or bios.</li>
-          <li>Don't attempt to access other users' data or disrupt the service.</li>
+          <li>Only upload PDFs, images, or text you have the right to process.</li>
+          <li>Do not submit unlawful, harmful, or harassing content, attempt prompt injection to bypass system safeguards, or probe other users&apos; data.</li>
         </ul>
       </section>
       <section>
-        <h2>Your content</h2>
-        <p>You keep ownership of what you create and upload. We only use it to provide the service to you.</p>
+        <h2>Your content and deletion rights</h2>
+        <p>
+          You retain ownership of all notes and materials you upload or edit. Deleting a note or deleting your account removes
+          your stored content and ends Visualify&apos;s access to it.
+        </p>
       </section>
     </LegalPage>
   );

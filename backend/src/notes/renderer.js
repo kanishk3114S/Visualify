@@ -1,36 +1,19 @@
-import { renderScene } from "@visualify/worker";
+import { globalRenderSemaphore, renderScene } from "@visualify/worker";
 
 /**
- * Server-side scene renderer (Excalidraw CLI + headless browser) with a small
- * concurrency cap so bursts of exports can't launch unbounded browsers.
+ * Server-side scene renderer (Excalidraw CLI + headless browser) backed by the
+ * process-wide global render semaphore so pipeline compiles, exports, previews,
+ * and ZIP slides never exceed `RENDER_CONCURRENCY` simultaneous browsers.
  */
-export function createCliRenderer({ browserPath, timeoutMs, maxConcurrent = 2 } = {}) {
-  let active = 0;
-  const waiting = [];
-  const acquire = () => {
-    if (active < maxConcurrent) {
-      active += 1;
-      return Promise.resolve();
-    }
-    return new Promise((resolve) => waiting.push(resolve));
-  };
-  // Hand the slot straight to the next waiter (no window where a newcomer can overtake).
-  const release = () => {
-    const next = waiting.shift();
-    if (next) next();
-    else active -= 1;
-  };
-
+export function createCliRenderer({ browserPath, timeoutMs, semaphore = globalRenderSemaphore } = {}) {
   return {
     /** @returns {Promise<{ buffer: Buffer, width: number|null, height: number|null, bytes: number }>} */
-    async render({ scene, format, theme = "light", transparent = false }) {
-      await acquire();
-      try {
-        const out = await renderScene({ sceneJson: scene, format, theme, transparent, browserPath, timeoutMs });
+    async render({ scene, format, theme = "light", transparent = false, signal } = {}) {
+      const work = async () => {
+        const out = await renderScene({ sceneJson: scene, format, theme, transparent, browserPath, timeoutMs, signal, semaphore });
         return { buffer: out.buffer, width: out.width, height: out.height, bytes: out.bytes };
-      } finally {
-        release();
-      }
+      };
+      return semaphore ? semaphore.run(work, { signal }) : work();
     },
   };
 }

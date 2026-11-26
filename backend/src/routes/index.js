@@ -4,6 +4,7 @@ import { createMeRouter } from "./me.routes.js";
 import { createGenerationsRouter } from "./generations.routes.js";
 import { createExportsRouter, createFoldersRouter, createNotesRouter } from "./notes.routes.js";
 import { createSourcesRouter } from "./sources.routes.js";
+import { createAdminRouter } from "./admin.routes.js";
 
 /** Mounts every /api/v1 route. */
 export function createApiRouter(deps) {
@@ -15,5 +16,6 @@ export function createApiRouter(deps) {
   router.use("/folders", createFoldersRouter(deps));
   router.use("/notes", createNotesRouter(deps));
   router.use("/exports", createExportsRouter(deps));
+  router.use("/admin", createAdminRouter(deps));
   return router;
 }

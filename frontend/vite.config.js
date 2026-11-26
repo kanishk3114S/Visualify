@@ -11,6 +11,10 @@ export default defineConfig({
   server: {
     port: 5173,
     strictPort: true,
+    headers: {
+      // Allow bundled third-party @excalidraw/excalidraw unload listeners under Chrome's default Permissions-Policy.
+      "Permissions-Policy": "unload=(self)",
+    },
   },
   build: {
     // Never ship source maps publicly (Agents.MD Section 21).

@@ -1,5 +1,7 @@
+import { randomUUID } from "node:crypto";
 import { parsePageRange, SourceExtractionError } from "@visualify/worker";
 import { AppError } from "../utils/errors.js";
+import { isRefundableFailureCode } from "../services/usageService.js";
 import { ActiveJobExistsError } from "./jobStore.js";
 import { ACTIVE_STATUSES, RUNNING_STATUSES, STAGE_PROGRESS, isTerminal, toSafeError } from "./jobStates.js";
 import { runGenerationPipeline } from "./pipeline.js";
@@ -40,11 +42,12 @@ export function toJobDto(row) {
  * pipeline execution with persisted stage transitions, SSE events,
  * cancellation, retry and crash recovery.
  */
-export function createGenerationService({ config, store, queue, bus, pipelineDeps, logger }) {
+export function createGenerationService({ config, store, queue, bus, pipelineDeps, usageService = null, analyticsService = null, logger }) {
   const log = logger?.child ? logger.child({ component: "generation" }) : logger;
 
   function publish(jobId, type, data) {
     bus.publish(jobId, { type, data });
+    queue.publishEvent?.(jobId, type, data);
   }
 
   async function markCancelled(jobId) {
@@ -78,6 +81,7 @@ export function createGenerationService({ config, store, queue, bus, pipelineDep
       if (!row) throw Object.assign(new Error("job no longer runnable"), { code: "CANCELLED" });
       started = true;
       publish(job.id, "stage", { status: stage, stage, progress: lastProgress });
+      analyticsService?.record("generation_stage_changed", job.owner_id, { jobId: job.id, stage });
       log?.info({ ...ctx, stage }, "generation stage");
     };
     const onProgress = (progress) => {
@@ -112,7 +116,28 @@ export function createGenerationService({ config, store, queue, bus, pipelineDep
         return;
       }
       publish(job.id, "completed", { status: "completed", progress: 100 });
-      log?.info({ ...ctx, durationMs: Date.now() - t0, modelId: result.modelId }, "generation completed");
+      analyticsService?.record("generation_completed", job.owner_id, {
+        jobId: job.id,
+        durationMs: Date.now() - t0,
+        plannerLatencyMs: result.usage?.plannerLatencyMs ?? null,
+        model: result.modelId,
+        failedOver: Boolean(result.usage?.failedOver),
+        repaired: Boolean(result.usage?.repaired),
+        sectionsComposed: result.usage?.sectionsComposed ?? null,
+        promptTokens: result.usage?.promptTokens ?? null,
+        outputTokens: result.usage?.outputTokens ?? null,
+        totalTokens: result.usage?.totalTokens ?? null,
+      });
+      log?.info(
+        {
+          ...ctx,
+          durationMs: Date.now() - t0,
+          modelId: result.modelId,
+          attempts: result.usage?.attempts ?? 1,
+          failedOver: Boolean(result.usage?.failedOver),
+        },
+        "generation completed"
+      );
     } catch (err) {
       try {
         if (err?.code === "CANCELLED") {
@@ -122,6 +147,14 @@ export function createGenerationService({ config, store, queue, bus, pipelineDep
         }
         const safe = toSafeError(err);
         await markFailed(job.id, safe);
+        analyticsService?.record("generation_failed", job.owner_id, {
+          jobId: job.id,
+          durationMs: Date.now() - t0,
+          errorCode: safe.code,
+        });
+        if (isRefundableFailureCode(safe.code, safe.internalCode)) {
+          await usageService?.refundQuota?.({ userId: job.owner_id, correlationId: job.id }).catch(() => {});
+        }
         log?.warn({ ...ctx, durationMs: Date.now() - t0, errorCode: safe.code, internalCode: safe.internalCode }, "generation failed");
       } catch (persistErr) {
         log?.error({ ...ctx, err: persistErr }, "could not persist generation outcome");
@@ -181,7 +214,15 @@ export function createGenerationService({ config, store, queue, bus, pipelineDep
       attemptCount = 1,
     }) {
       await validateSourceForJob({ db, ownerId, inputType, sourceFileId, pageRange });
+      const correlationId = randomUUID();
+      await usageService?.consumeQuota({
+        userId: ownerId,
+        eventType: retryOf ? "generation_retry" : "generation_create",
+        correlationId,
+        metadata: { inputType, ...(retryOf ? { retryOf } : {}) },
+      });
       const input = {
+        id: correlationId,
         ownerId,
         inputType,
         inputText: prompt ?? null,
@@ -195,18 +236,35 @@ export function createGenerationService({ config, store, queue, bus, pipelineDep
       try {
         job = await store.insertJob(input);
       } catch (err) {
-        if (!(err instanceof ActiveJobExistsError)) throw err;
+        if (!(err instanceof ActiveJobExistsError)) {
+          await usageService?.refundQuota?.({ userId: ownerId, correlationId }).catch(() => {});
+          throw err;
+        }
         const reclaimed = await reclaimIfStale(ownerId);
         const active = reclaimed ? null : await store.findActiveJob(ownerId);
         if (!reclaimed) {
+          await usageService?.refundQuota?.({ userId: ownerId, correlationId }).catch(() => {});
           throw new AppError(409, "ACTIVE_JOB_EXISTS", "You already have a visual being generated. Wait for it to finish or cancel it.", {
             details: active ? { activeJobId: active.id } : null,
           });
         }
-        job = await store.insertJob(input);
+        try {
+          job = await store.insertJob(input);
+        } catch (retryInsertErr) {
+          await usageService?.refundQuota?.({ userId: ownerId, correlationId }).catch(() => {});
+          throw retryInsertErr;
+        }
       }
       queue.enqueue(job.id, (signal) => execute(job, signal));
-      log?.info({ jobId: job.id, userId: ownerId, inputType, stage: "queued" }, "generation queued");
+      analyticsService?.record("generation_started", ownerId, {
+        jobId: job.id,
+        inputType,
+        detail: settings?.detail ?? "standard",
+        visualStyle: settings?.visualStyle ?? "hand_drawn_clean",
+        attemptCount,
+        isRetry: Boolean(retryOf),
+      });
+      log?.info({ jobId: job.id, userId: ownerId, inputType, attemptCount, stage: "queued" }, "generation queued");
       return job;
     },
 
@@ -217,7 +275,7 @@ export function createGenerationService({ config, store, queue, bus, pipelineDep
       if (isTerminal(job.status)) {
         throw new AppError(409, "JOB_ALREADY_FINISHED", "This generation has already finished and can't be cancelled.");
       }
-      const outcome = queue.cancel(jobId);
+      const outcome = await queue.cancel(jobId);
       if (outcome === "aborted") {
         const row = await store.updateJob(jobId, { status: "cancelling", stage: "cancelling" }, { expectStatus: RUNNING_STATUSES });
         if (row) {
@@ -263,7 +321,22 @@ export function createGenerationService({ config, store, queue, bus, pipelineDep
       return count;
     },
 
+    /** Executes a dequeued job row (used by split `worker` processes fetching rows from Postgres). */
+    async runJobById(jobId, queueSignal) {
+      const job = await store.getJobForRunner?.(jobId);
+      if (!job) {
+        log?.warn({ jobId }, "dequeued job missing from database");
+        return;
+      }
+      if (isTerminal(job.status) || job.status === "cancelling") {
+        if (job.status === "cancelling") await markCancelled(job.id);
+        return;
+      }
+      await execute(job, queueSignal);
+    },
+
     onIdle: () => queue.onIdle(),
-    shutdown: () => queue.abortAll(),
+    pause: () => queue.pause?.(),
+    shutdown: () => (queue.close ? queue.close() : queue.abortAll()),
   };
 }

@@ -4,15 +4,21 @@ import cors from "cors";
 import { pinoHttp } from "pino-http";
 import { requestId } from "./middleware/requestId.js";
 import { createRateLimiters } from "./middleware/rateLimit.js";
-import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
+import { createErrorHandler, notFoundHandler } from "./middleware/errorHandler.js";
 import { createApiRouter } from "./routes/index.js";
+import { createHealthController } from "./controllers/health.controller.js";
 import { createLogger, httpSerializers } from "./utils/logger.js";
+import { initApiSentry } from "./utils/sentry.js";
 import { sendError } from "./utils/response.js";
 import { createSupabaseGateway } from "./config/supabase.js";
+import { createRedisClient } from "./config/redis.js";
+import { createUsageService } from "./services/usageService.js";
+import { createAnalyticsService } from "./services/analyticsService.js";
+import { createAccountService } from "./services/accountService.js";
 import { createGenerationStack } from "./generation/index.js";
 import { createNotesStack } from "./notes/index.js";
 
-const ALLOWED_METHODS = ["GET", "POST", "PATCH", "DELETE"];
+const ALLOWED_METHODS = ["GET", "POST", "PATCH", "PUT", "DELETE"];
 
 /**
  * Express app factory. Does not listen, so tests can drive it with Supertest.
@@ -20,19 +26,29 @@ const ALLOWED_METHODS = ["GET", "POST", "PATCH", "DELETE"];
  * @param {object} options.config  Validated config from loadConfig()
  * @param {object} [options.gateway] Supabase gateway (injectable for tests)
  * @param {object} [options.logger]  pino logger (injectable for tests)
- * @param {object} [options.generation] { service, store, bus } (injectable for tests)
+ * @param {object} [options.redis]   Redis client (optional; defaults from config.redisUrl)
+ * @param {object} [options.sentry]  Sentry handle (optional; defaults from config.sentryDsn)
+ * @param {object} [options.usageService] Usage & quota service (injectable for tests)
+ * @param {object} [options.accountService] Account lifecycle service (injectable for tests)
+ * @param {object} [options.generation] { service, store, bus, queue } (injectable for tests)
  * @param {object} [options.notes] { service, contextFor } (injectable for tests)
  */
 export function createApp({
   config,
   gateway = createSupabaseGateway(config),
   logger = createLogger(config),
-  generation = createGenerationStack({ config, gateway, logger }),
-  notes = createNotesStack({ config, gateway, generation, logger }),
+  redis = createRedisClient(config.redisUrl, { logger }),
+  limiters = createRateLimiters({ redis }),
+  sentry = initApiSentry({ config, logger }),
+  usageService = createUsageService({ config, adminDb: gateway.createAdminClient?.() ?? null, logger }),
+  analyticsService = createAnalyticsService({ config, adminDb: gateway.createAdminClient?.() ?? null, logger }),
+  accountService = createAccountService({ gateway, logger, analyticsService }),
+  generation = createGenerationStack({ config, gateway, logger, redis, usageService, analyticsService }),
+  notes = createNotesStack({ config, gateway, generation, logger, usageService, analyticsService, redis }),
 }) {
   const app = express();
   const allowedOrigins = new Set(config.frontendOrigins);
-  const limiters = createRateLimiters();
+  const healthController = createHealthController(gateway, { config, redis });
 
   app.disable("x-powered-by");
   // Only trust X-Forwarded-For from exactly one proxy hop, and only when configured.
@@ -77,6 +93,10 @@ export function createApp({
     next();
   });
 
+  // Probe endpoints (no rate limit, no secrets, never leak internals).
+  app.get("/healthz", healthController.getLiveness);
+  app.get("/readyz", healthController.getReadiness);
+
   // Explicit CORS allowlist. A browser request from any other origin is
   // rejected outright (not merely left without CORS headers).
   app.use((req, res, next) => {
@@ -99,12 +119,16 @@ export function createApp({
 
   app.use("/api", limiters.api);
 
-  app.use("/api/v1", createApiRouter({ config, gateway, limiters, generation, notes }));
+  app.use("/api/v1", createApiRouter({ config, gateway, limiters, generation, notes, usageService, analyticsService, accountService, redis }));
   app.locals.generation = generation;
   app.locals.notes = notes;
+  app.locals.usage = usageService;
+  app.locals.analytics = analyticsService;
+  app.locals.redis = redis;
+  app.locals.sentry = sentry;
 
   app.use(notFoundHandler);
-  app.use(errorHandler);
+  app.use(createErrorHandler({ sentry }));
 
   return app;
 }

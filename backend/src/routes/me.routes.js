@@ -2,12 +2,12 @@ import express, { Router } from "express";
 import multer from "multer";
 import { requireAuth } from "../middleware/auth.js";
 import { validateBody } from "../middleware/validate.js";
-import { profilePatchSchema } from "../schemas/profile.schema.js";
+import { deleteAccountSchema, profilePatchSchema } from "../schemas/profile.schema.js";
 import { createMeController } from "../controllers/me.controller.js";
 
-export function createMeRouter({ config, gateway, limiters }) {
+export function createMeRouter({ config, gateway, limiters, usageService = null, accountService = null, analyticsService = null }) {
   const router = Router();
-  const controller = createMeController(config);
+  const controller = createMeController(config, { usageService, accountService, analyticsService });
 
   // Memory storage: the buffer is magic-byte checked and re-encoded, never written to disk.
   const avatarUpload = multer({
@@ -19,6 +19,14 @@ export function createMeRouter({ config, gateway, limiters }) {
   router.use(requireAuth(gateway));
 
   router.get("/", controller.getMe);
+  router.get("/usage", controller.getUsage);
+  router.delete(
+    "/",
+    limiters.accountDelete,
+    express.json({ limit: "4kb", strict: true }),
+    validateBody(deleteAccountSchema),
+    controller.deleteAccount
+  );
   // JSON is parsed only after authentication, and only where a body is expected.
   router.patch(
     "/",

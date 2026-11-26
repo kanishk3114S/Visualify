@@ -1,5 +1,11 @@
 import { GoogleGenAI } from "@google/genai";
-import { getGeminiConfig } from "../config/env.js";
+import {
+  DEFAULT_FALLBACK_MODEL,
+  DEFAULT_GEMINI_MODEL,
+  SECONDARY_FALLBACK_MODEL,
+  getDefaultFallbackModels,
+  getGeminiConfig,
+} from "../config/env.js";
 import {
   LearningPlanSchema,
   SUPPORTED_VISUAL_TYPES,
@@ -7,7 +13,47 @@ import {
 } from "../schemas/learningPlan.js";
 
 /** Bump whenever SYSTEM_INSTRUCTION or the request template changes (PRD 9.6). */
-export const PROMPT_VERSION = "planner-2026-11-26.2";
+export const PROMPT_VERSION = "planner-2026-11-26.3";
+export { DEFAULT_GEMINI_MODEL, DEFAULT_FALLBACK_MODEL, SECONDARY_FALLBACK_MODEL };
+
+const clientCache = new Map();
+
+function getCachedClient(apiKey) {
+  let client = clientCache.get(apiKey);
+  if (!client) {
+    client = new GoogleGenAI({ apiKey });
+    clientCache.set(apiKey, client);
+  }
+  return client;
+}
+
+/** Resolves fast low-thinking configuration supported by the target Gemini model series. */
+export function resolveThinkingConfig(modelName, thinkingLevel = "LOW") {
+  const m = String(modelName || "").trim();
+  if (/^gemini-3/i.test(m)) {
+    return { thinkingLevel };
+  }
+  if (/^gemini-2\.5-flash/i.test(m)) {
+    return { thinkingBudget: 0 };
+  }
+  return undefined;
+}
+
+function buildModelChain(primaryModel, fallbackModels) {
+  const seen = new Set();
+  const chain = [];
+  const push = (m) => {
+    const clean = typeof m === "string" ? m.trim() : "";
+    if (clean && !seen.has(clean)) {
+      seen.add(clean);
+      chain.push(clean);
+    }
+  };
+  push(primaryModel);
+  const fallbacks = Array.isArray(fallbackModels) ? fallbackModels : getDefaultFallbackModels(primaryModel);
+  for (const m of fallbacks) push(m);
+  return chain;
+}
 
 const UNTRUSTED_OPEN = "<untrusted_user_input>";
 const UNTRUSTED_CLOSE = "</untrusted_user_input>";
@@ -144,7 +190,7 @@ function classifyProviderError(err) {
   const status = err?.status || err?.code;
   const msg = String(err?.message || err || "");
 
-  if (err?.name === "AbortError" || /timeout|aborted/i.test(msg)) {
+  if (err?.name === "AbortError" || /timeout|aborted|deadline/i.test(msg)) {
     return new GeminiPlannerError("Gemini API request timed out", {
       code: "PROVIDER_TIMEOUT",
       status: 504,
@@ -152,11 +198,21 @@ function classifyProviderError(err) {
       cause: err,
     });
   }
+  if (status === 400 || /INVALID_ARGUMENT/i.test(msg)) {
+    return new GeminiPlannerError(`Gemini API rejected request arguments: ${msg}`, {
+      code: "PROVIDER_INVALID_ARGUMENT",
+      status: 400,
+      retryable: false,
+      cause: err,
+    });
+  }
   if (status === 429 || /rate limit|quota|resource_exhausted/i.test(msg)) {
     return new GeminiPlannerError("Gemini API rate limit or quota exceeded", {
       code: "PROVIDER_RATE_LIMIT",
       status: 429,
+      // Retry on the same model won't clear a 429, but failover to another model can.
       retryable: false,
+      failoverEligible: true,
       cause: err,
     });
   }
@@ -165,7 +221,7 @@ function classifyProviderError(err) {
     status === 502 ||
     status === 503 ||
     status === 504 ||
-    /UNAVAILABLE|ECONNRESET|ETIMEDOUT|ENOTFOUND|fetch failed/i.test(msg)
+    /UNAVAILABLE|DEADLINE|ECONNRESET|ETIMEDOUT|ENOTFOUND|fetch failed/i.test(msg)
   ) {
     return new GeminiPlannerError(`Gemini API transient error: ${msg}`, {
       code: "PROVIDER_TRANSIENT_ERROR",
@@ -182,35 +238,51 @@ function classifyProviderError(err) {
   });
 }
 
+/**
+ * Executes a single model call with per-attempt timeout and strict failover rules.
+ *
+ * Billing note: aborting an in-flight request via AbortSignal stops the local
+ * HTTP wait immediately so failover or error handling can proceed, but does NOT
+ * cancel upstream provider billing once Gemini has begun generating tokens.
+ */
 async function callModelWithTimeout({
   client,
   model,
+  fallbackModels,
+  thinkingLevel = "LOW",
   systemInstruction = SYSTEM_INSTRUCTION,
   contents,
   jsonSchema,
   timeoutMs,
-  maxTransientRetries = 2,
-  retryBaseDelayMs = 800,
+  maxTransientRetries = 1,
+  retryBaseDelayMs = 250,
   signal,
 }) {
+  const models = buildModelChain(model, fallbackModels);
   let attempt = 0;
 
   while (true) {
     if (signal?.aborted) throw cancelledError(signal.reason);
+    const activeModel = models[Math.min(attempt, models.length - 1)];
+    const hasRemainingFallback = attempt < maxTransientRetries && models.length > attempt + 1;
+    // Fail over quickly if a primary model hangs instead of burning the entire job timeout.
+    const attemptTimeoutMs = hasRemainingFallback ? Math.min(timeoutMs, 20_000) : timeoutMs;
+    const thinkingConfig = resolveThinkingConfig(activeModel, thinkingLevel);
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    const timer = setTimeout(() => controller.abort(), attemptTimeoutMs);
     const onExternalAbort = () => controller.abort();
     signal?.addEventListener("abort", onExternalAbort, { once: true });
 
     try {
       const response = await client.models.generateContent({
-        model,
+        model: activeModel,
         contents,
         config: {
           systemInstruction,
           responseMimeType: "application/json",
           responseJsonSchema: jsonSchema,
           temperature: 0.2,
+          ...(thinkingConfig ? { thinkingConfig } : {}),
           abortSignal: controller.signal,
         },
       });
@@ -235,15 +307,29 @@ async function callModelWithTimeout({
         });
       }
 
-      return { rawText, usageMetadata: response?.usageMetadata || null };
+      return {
+        rawText,
+        model: activeModel,
+        attempts: attempt + 1,
+        usageMetadata: response?.usageMetadata || null,
+      };
     } catch (err) {
       if (signal?.aborted) throw cancelledError(err);
       const classified =
-        err instanceof GeminiPlannerError ? err : classifyProviderError(err);
+        err instanceof GeminiPlannerError
+          ? err
+          : classifyProviderError(err);
+      const nextModel = models[Math.min(attempt + 1, models.length - 1)];
+      const canSwitchModel = nextModel !== activeModel;
+      const shouldRetry =
+        attempt < maxTransientRetries &&
+        (classified.retryable || (canSwitchModel && err?.status === 429) || (canSwitchModel && classified.code === "PROVIDER_RATE_LIMIT"));
 
-      if (classified.retryable && attempt < maxTransientRetries) {
+      if (shouldRetry) {
         attempt += 1;
-        const delayMs = retryBaseDelayMs * 2 ** (attempt - 1);
+        const delayMs = canSwitchModel
+          ? Math.min(retryBaseDelayMs, 100)
+          : retryBaseDelayMs * 2 ** (attempt - 1);
         await new Promise((resolve) => setTimeout(resolve, delayMs));
         continue;
       }
@@ -293,27 +379,35 @@ export async function generateStructuredJson({
   schema,
   jsonSchema,
   repairLabel = "JSON payload",
+  thinkingLevel = "LOW",
+  fallbackModels,
   signal,
   client = null,
   model = null,
   timeoutMs = 30_000,
-  maxTransientRetries = 2,
-  retryBaseDelayMs = 800,
+  maxTransientRetries = 1,
+  retryBaseDelayMs = 250,
 }) {
   let resolvedClient = client;
   let resolvedModel = model;
+  const startedAt = Date.now();
+  let resolvedFallbackModels = fallbackModels;
   if (!resolvedClient) {
     const cfg = getGeminiConfig();
-    resolvedClient = new GoogleGenAI({ apiKey: cfg.apiKey });
+    resolvedClient = getCachedClient(cfg.apiKey);
     resolvedModel = resolvedModel || cfg.model;
+    if (resolvedFallbackModels === undefined) {
+      resolvedFallbackModels = cfg.fallbackModels;
+    }
   } else {
-    resolvedModel = resolvedModel || process.env.GEMINI_MODEL || "gemini-3.5-flash";
+    resolvedModel = resolvedModel || process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL;
   }
 
-  const startedAt = Date.now();
   const firstAttempt = await callModelWithTimeout({
     client: resolvedClient,
     model: resolvedModel,
+    fallbackModels: resolvedFallbackModels,
+    thinkingLevel,
     systemInstruction,
     contents,
     jsonSchema,
@@ -327,7 +421,10 @@ export async function generateStructuredJson({
   if (firstValidation.ok) {
     return {
       data: firstValidation.data,
-      model: resolvedModel,
+      model: firstAttempt.model ?? resolvedModel,
+      primaryModel: resolvedModel,
+      attempts: firstAttempt.attempts ?? 1,
+      failedOver: (firstAttempt.model ?? resolvedModel) !== resolvedModel,
       repaired: false,
       latencyMs: Date.now() - startedAt,
       usageMetadata: firstAttempt.usageMetadata,
@@ -343,23 +440,30 @@ ${firstAttempt.rawText.slice(0, 8000)}
 
 Fix ONLY the validation errors above and return a complete valid ${repairLabel} matching the schema.`;
 
+  // Bounded 1-shot schema repair runs strictly on the SAME responding model (never model failover).
   const repairAttempt = await callModelWithTimeout({
     client: resolvedClient,
-    model: resolvedModel,
+    model: firstAttempt.model ?? resolvedModel,
+    fallbackModels: [],
+    thinkingLevel,
     systemInstruction,
     contents: repairContents,
     jsonSchema,
     timeoutMs,
-    maxTransientRetries,
+    maxTransientRetries: 0,
     retryBaseDelayMs,
     signal,
   });
 
   const repairValidation = parseAndValidateWithSchema(repairAttempt.rawText, schema);
   if (repairValidation.ok) {
+    const respondingModel = repairAttempt.model ?? firstAttempt.model ?? resolvedModel;
     return {
       data: repairValidation.data,
-      model: resolvedModel,
+      model: respondingModel,
+      primaryModel: resolvedModel,
+      attempts: (firstAttempt.attempts ?? 1) + (repairAttempt.attempts ?? 1),
+      failedOver: respondingModel !== resolvedModel,
       repaired: true,
       latencyMs: Date.now() - startedAt,
       usageMetadata: repairAttempt.usageMetadata,
@@ -385,12 +489,14 @@ export async function generateLearningPlan({
   extractedSource = null,
   preferredVisualTypes = SUPPORTED_VISUAL_TYPES,
   settings = {},
+  thinkingLevel = "LOW",
+  fallbackModels,
   signal,
   client = null,
   model = null,
   timeoutMs = 30_000,
-  maxTransientRetries = 2,
-  retryBaseDelayMs = 800,
+  maxTransientRetries = 1,
+  retryBaseDelayMs = 250,
 } = {}) {
   const cleanPrompt = typeof prompt === "string" ? prompt.trim() : "";
   if (inputType === "prompt" && !cleanPrompt && !extractedSource) {
@@ -413,6 +519,8 @@ export async function generateLearningPlan({
     schema: LearningPlanSchema,
     jsonSchema: getLearningPlanGeminiJsonSchema(),
     repairLabel: "learning plan",
+    thinkingLevel,
+    fallbackModels,
     signal,
     client,
     model,
@@ -424,6 +532,9 @@ export async function generateLearningPlan({
   return {
     plan: out.data,
     model: out.model,
+    primaryModel: out.primaryModel,
+    attempts: out.attempts,
+    failedOver: out.failedOver,
     promptVersion: PROMPT_VERSION,
     repaired: out.repaired,
     latencyMs: out.latencyMs,

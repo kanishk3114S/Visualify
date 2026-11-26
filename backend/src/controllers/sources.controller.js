@@ -16,7 +16,7 @@ function requireSourceId(req) {
   return req.params.sourceFileId.toLowerCase();
 }
 
-export function createSourcesController(config) {
+export function createSourcesController(config, { analyticsService = null } = {}) {
   return {
     async upload(req, res) {
       const sourceFile = await processAndUploadSourceFile({
@@ -51,7 +51,7 @@ export function createSourcesController(config) {
       const sourceFileId = requireSourceId(req);
       const { data: row, error: selErr } = await req.db
         .from("source_files")
-        .select("id, object_path")
+        .select("id, object_path, mime_type")
         .eq("id", sourceFileId)
         .eq("owner_id", req.user.id)
         .maybeSingle();
@@ -72,6 +72,7 @@ export function createSourcesController(config) {
       if (delErr) {
         throw new AppError(502, "DATABASE_ERROR", "We couldn't complete that request. Please try again.", { cause: delErr });
       }
+      analyticsService?.record("source_deleted", req.user.id, { sourceFileId, mimeType: row.mime_type });
       return sendSuccess(res, { deleted: true });
     },
   };

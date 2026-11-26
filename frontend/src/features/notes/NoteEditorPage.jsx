@@ -308,9 +308,16 @@ function NoteEditor({ detail, refetch }) {
 
       <SnapshotDialog open={panel === "snapshot"} busy={snapshot.isPending} onClose={() => setPanel(null)} onSubmit={takeSnapshot} />
       <VersionHistory noteId={note.id} open={panel === "history"} onClose={() => setPanel(null)} onRestore={restoreVersion} restoring={restore.isPending} />
-      <ExportDialog open={panel === "export"} onClose={() => setPanel(null)} note={note} frames={frames} beforeExport={async () => {
+      <ExportDialog
+        open={panel === "export"}
+        onClose={() => setPanel(null)}
+        note={note}
+        frames={frames}
+        selectedElements={selected.elements}
+        beforeExport={async () => {
           if ((await autosave.flush()) !== "saved") throw new Error("unsaved");
-        }} />
+        }}
+      />
       <ConfirmDialog
         open={leaveConfirm}
         title="Leave without saving?"

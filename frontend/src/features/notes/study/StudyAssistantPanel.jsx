@@ -4,6 +4,7 @@ import { Button } from "../../../components/Button.jsx";
 import { Badge } from "../../../components/Layout.jsx";
 import { FormAlert, TextField } from "../../../components/Field.jsx";
 import { useAskNote, useExplainSelection } from "../../../hooks/useNotes.js";
+import { useUsage } from "../../../hooks/useProfile.js";
 import { buildSelectedContext } from "../../../lib/frames.js";
 
 const QUICK_PROMPTS = [
@@ -22,6 +23,8 @@ export function StudyAssistantPanel({
 }) {
   const explain = useExplainSelection();
   const ask = useAskNote();
+  const { data: usage } = useUsage();
+  const quotaReached = Boolean(usage && usage.remaining <= 0);
   const [explainQuestion, setExplainQuestion] = useState("");
   const [askQuestion, setAskQuestion] = useState("");
   const [askResult, setAskResult] = useState(null);
@@ -83,7 +86,7 @@ export function StudyAssistantPanel({
                 <li key={p.label}>
                   <button
                     type="button"
-                    disabled={explain.isPending}
+                    disabled={explain.isPending || quotaReached}
                     onClick={() => runExplain(p.q)}
                     className="rounded-full border border-stone-300 bg-surface px-2.5 py-1 text-xs font-medium text-stone-800 hover:border-accent-700 hover:text-accent-900"
                   >
@@ -101,10 +104,11 @@ export function StudyAssistantPanel({
                   onChange={(e) => setExplainQuestion(e.target.value)}
                 />
               </div>
-              <Button
+                <Button
                 size="sm"
                 className="self-end"
                 loading={explain.isPending}
+                disabled={quotaReached}
                 loadingText="…"
                 onClick={() => runExplain()}
                 data-testid="assistant-explain-submit"
