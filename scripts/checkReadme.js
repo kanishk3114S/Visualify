@@ -44,14 +44,25 @@ for (const m of content.matchAll(/\b(?:src|srcset)=["']([^"']+)["']/gi)) {
   candidates.add(m[1].trim());
 }
 
+function existsCaseSensitive(rootDir, relPath) {
+  const parts = relPath.split(/[\\/]+/).filter(Boolean);
+  let cur = rootDir;
+  for (const part of parts) {
+    if (!fs.existsSync(cur)) return false;
+    const entries = fs.readdirSync(cur);
+    if (!entries.includes(part)) return false;
+    cur = path.join(cur, part);
+  }
+  return fs.existsSync(cur);
+}
+
 for (const rawTarget of candidates) {
   const target = rawTarget.split(/\s+/)[0].split("#")[0];
   if (!target) continue;
   if (/^(https?:|mailto:|#)/i.test(target)) continue;
   const normalized = target.replace(/^\/+/, "");
-  const resolved = path.join(ROOT, normalized);
-  if (!fs.existsSync(resolved)) {
-    console.error(`[checkReadme] Broken local reference in README.md: "${rawTarget}"`);
+  if (!existsCaseSensitive(ROOT, normalized)) {
+    console.error(`[checkReadme] Broken or case-mismatched local reference in README.md: "${rawTarget}"`);
     errors += 1;
   }
 }

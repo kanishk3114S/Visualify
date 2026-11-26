@@ -313,7 +313,7 @@ Visualizer/
 | [docs/operations/runbook.md](docs/operations/runbook.md) | Alerts, incident response, backup/restore & support workflow |
 | [docs/phase-6/phase-6.5-closeout-report.md](docs/phase-6/phase-6.5-closeout-report.md) | Launch close-out, model eval decision & split-role architecture |
 | [supabase/README.md](supabase/README.md) | Database migrations, Auth URLs & OAuth configuration |
-| [AGENTS.md](AGENTS.md) | Engineering, code quality & security rules |
+| [Agents.MD](Agents.MD) | Engineering, code quality & security rules |
 
 ---
 
