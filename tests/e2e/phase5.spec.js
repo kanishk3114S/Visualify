@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
+import { settleAnimations } from "./support/a11y.js";
 import { composeLessonScene } from "../../backend/worker/src/adapters/sceneComposer.js";
 import { buildComparisonScene, buildMindmapScene } from "../../backend/worker/src/adapters/directSceneAdapter.js";
 import { makeProfile, mockApi, signInWithFakeSession, trackErrors } from "./support/mockBackend.js";
@@ -160,6 +161,7 @@ test.describe("Phase 5: Presentation mode, Study Companion, Selection Explain & 
         await page.goto(`/app/notes/${note.id}/present`);
         await expect(page.getByTestId("slide-counter")).toBeVisible();
         await expect(page.getByTestId("workspace-canvas").locator("canvas.interactive").first()).toBeVisible({ timeout: 15_000 });
+        await settleAnimations(page);
         const presentAxe = await new AxeBuilder({ page }).exclude(".excalidraw").withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze();
         expect(presentAxe.violations).toEqual([]);
         const presentOverflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
@@ -172,6 +174,7 @@ test.describe("Phase 5: Presentation mode, Study Companion, Selection Explain & 
         await page.goto(`/app/notes/${note.id}`);
         for (const tabLabel of ["Quick Quiz", "Flashcards", "Revision Sheet", "Ask This Note"]) {
           await page.getByTestId("note-study-tabs").getByRole("radio", { name: tabLabel }).click();
+          await settleAnimations(page);
           const res = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze();
           expect(res.violations, `Axe violations on ${tabLabel} (${viewport.name}, ${theme})`).toEqual([]);
           const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
@@ -182,6 +185,7 @@ test.describe("Phase 5: Presentation mode, Study Companion, Selection Explain & 
         await page.getByTestId("note-study-tabs").getByRole("radio", { name: "Quick Quiz" }).click();
         await page.getByTestId("generate-quiz-btn").click();
         await expect(page.getByTestId("quiz-question-0")).toBeVisible();
+        await settleAnimations(page);
         const quizAxe = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze();
         expect(quizAxe.violations).toEqual([]);
         if (viewport.name === "mobile" || theme === "light") {

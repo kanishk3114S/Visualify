@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
+import { settleAnimations } from "./support/a11y.js";
 import { makeProfile, mockApi, signInWithFakeSession, trackErrors } from "./support/mockBackend.js";
 import { createGenerationMock, PLAN, SCENE } from "./support/generationMocks.js";
 import { createNotesMock } from "./support/notesMocks.js";
@@ -139,6 +140,7 @@ test.describe("Phase 4 & UI Polish: interactive landing, PDF/image flows, worksp
         // Public landing page
         await page.goto("/");
         await expect(page.getByTestId("landing-showcase")).toBeVisible();
+        await settleAnimations(page);
         const landingAxe = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze();
         expect(landingAxe.violations).toEqual([]);
         const landingOverflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
@@ -167,6 +169,7 @@ test.describe("Phase 4 & UI Polish: interactive landing, PDF/image flows, worksp
         await page.goto("/app/create");
         await page.getByTestId("input-mode-switch").getByRole("radio", { name: "PDF Document" }).click();
         await expect(page.getByTestId("source-dropzone")).toBeVisible();
+        await settleAnimations(page);
         const createAxe = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze();
         expect(createAxe.violations).toEqual([]);
         const createOverflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
@@ -175,6 +178,7 @@ test.describe("Phase 4 & UI Polish: interactive landing, PDF/image flows, worksp
 
         await page.goto(`/app/notes/${note.id}`);
         await expect(page.getByTestId("study-checklist")).toBeVisible();
+        await settleAnimations(page);
         const readAxe = await new AxeBuilder({ page }).exclude(".excalidraw").withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze();
         expect(readAxe.violations).toEqual([]);
         const readOverflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);

@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
+import { settleAnimations } from "./support/a11y.js";
 import { makeProfile, mockApi, signInWithFakeSession, trackErrors } from "./support/mockBackend.js";
 import { createGenerationMock } from "./support/generationMocks.js";
 import { createNotesMock, routeStorageDownloads } from "./support/notesMocks.js";
@@ -64,6 +65,7 @@ test.describe("Phase 6.5: Admin Metrics, Non-Admin Guard, Quota Refund UX & Visu
         }, theme);
         // Let 150ms CSS color transitions settle before Axe reads computed contrast.
         await page.waitForTimeout(250);
+        await settleAnimations(page);
         const axe = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze();
         expect(axe.violations, `Axe failed on ${vp.tag} (${theme})`).toEqual([]);
         const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);

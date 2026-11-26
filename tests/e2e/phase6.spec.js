@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
+import { settleAnimations } from "./support/a11y.js";
 import { mockApi, signInWithFakeSession, trackErrors } from "./support/mockBackend.js";
 import { createGenerationMock } from "./support/generationMocks.js";
 import { createNotesMock, routeStorageDownloads } from "./support/notesMocks.js";
@@ -214,6 +215,7 @@ test.describe("Phase 6: Quotas, Selection Export, Account Deletion, Tablet, Moti
         if (route === "/privacy" || route === "/terms") {
           await expect(page.getByTestId("legal-draft-notice")).toBeVisible();
         }
+        await settleAnimations(page);
         const axe = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze();
         expect(axe.violations, `Axe failed on ${route} (${theme})`).toEqual([]);
         const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);

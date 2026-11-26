@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
+import { settleAnimations } from "./support/a11y.js";
 import { trackErrors } from "./support/mockBackend.js";
 
 test.describe("Phase 6.6: signature landing page, interactivity, a11y & no-JS baseline", () => {
@@ -35,6 +36,7 @@ test.describe("Phase 6.6: signature landing page, interactivity, a11y & no-JS ba
     await expect(page.getByRole("button", { name: /Resume gallery/i })).toHaveAttribute("aria-pressed", "true");
 
     // Light mode Axe WCAG 2 AA audit
+    await settleAnimations(page);
     const lightAxe = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"]).analyze();
     expect(lightAxe.violations).toEqual([]);
 
@@ -44,6 +46,7 @@ test.describe("Phase 6.6: signature landing page, interactivity, a11y & no-JS ba
       document.documentElement.setAttribute("data-theme", "dark");
     });
     await expect(page.locator("html")).toHaveClass(/dark/);
+    await settleAnimations(page);
     const darkAxe = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"]).analyze();
     expect(darkAxe.violations).toEqual([]);
 

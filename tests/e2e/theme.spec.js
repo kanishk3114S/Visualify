@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
+import { settleAnimations } from "./support/a11y.js";
 import { makeProfile, mockApi, signInWithFakeSession, trackErrors } from "./support/mockBackend.js";
 import { PLAN, SCENE } from "./support/generationMocks.js";
 import { createNotesMock } from "./support/notesMocks.js";
@@ -94,6 +95,7 @@ test.describe("Phase 3: WCAG AA contrast & axe audit across themes", () => {
         await page.goto(path);
         await expect(page.locator("h1").first()).toBeVisible();
         await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
+        await settleAnimations(page);
         const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze();
         expect(results.violations, `Axe violations on ${path} (${theme}): ${JSON.stringify(results.violations, null, 2)}`).toEqual([]);
       }
@@ -125,6 +127,7 @@ test.describe("Phase 3: WCAG AA contrast & axe audit across themes", () => {
         await ready();
         await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
         // Excalidraw internals manage their own canvas & toolbars; audit all Visualify chrome & pages.
+        await settleAnimations(page);
         const results = await new AxeBuilder({ page }).exclude(".excalidraw").withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze();
         expect(results.violations, `Axe violations on ${path} (${theme}): ${JSON.stringify(results.violations, null, 2)}`).toEqual([]);
       }
