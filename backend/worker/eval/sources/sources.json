@@ -1,0 +1,220 @@
+[
+  {
+    "id": "pdf-01-async-event-loop",
+    "inputType": "pdf",
+    "file": "pdf-01-async-event-loop.pdf",
+    "mimeType": "application/pdf",
+    "domain": "programming",
+    "expectedVisualType": "flowchart",
+    "license": "CC0-synthetic-visualify",
+    "bytes": 894
+  },
+  {
+    "id": "pdf-02-git-branching",
+    "inputType": "pdf",
+    "file": "pdf-02-git-branching.pdf",
+    "mimeType": "application/pdf",
+    "domain": "programming",
+    "expectedVisualType": "flowchart",
+    "acceptableVisualTypes": [
+      "flowchart",
+      "timeline"
+    ],
+    "license": "CC0-synthetic-visualify",
+    "bytes": 839
+  },
+  {
+    "id": "pdf-03-db-indexing",
+    "inputType": "pdf",
+    "file": "pdf-03-db-indexing.pdf",
+    "mimeType": "application/pdf",
+    "domain": "databases",
+    "expectedVisualType": "comparison",
+    "license": "CC0-synthetic-visualify",
+    "bytes": 897
+  },
+  {
+    "id": "pdf-04-isolation-levels",
+    "inputType": "pdf",
+    "file": "pdf-04-isolation-levels.pdf",
+    "mimeType": "application/pdf",
+    "domain": "databases",
+    "expectedVisualType": "comparison",
+    "license": "CC0-synthetic-visualify",
+    "bytes": 854
+  },
+  {
+    "id": "pdf-05-dns-lookup",
+    "inputType": "pdf",
+    "file": "pdf-05-dns-lookup.pdf",
+    "mimeType": "application/pdf",
+    "domain": "networking",
+    "expectedVisualType": "sequence",
+    "license": "CC0-synthetic-visualify",
+    "bytes": 868
+  },
+  {
+    "id": "pdf-06-bgp-routing",
+    "inputType": "pdf",
+    "file": "pdf-06-bgp-routing.pdf",
+    "mimeType": "application/pdf",
+    "domain": "networking",
+    "expectedVisualType": "mindmap",
+    "acceptableVisualTypes": [
+      "mindmap",
+      "flowchart",
+      "sequence"
+    ],
+    "license": "CC0-synthetic-visualify",
+    "bytes": 861
+  },
+  {
+    "id": "pdf-07-cellular-respiration",
+    "inputType": "pdf",
+    "file": "pdf-07-cellular-respiration.pdf",
+    "mimeType": "application/pdf",
+    "domain": "biology",
+    "expectedVisualType": "flowchart",
+    "license": "CC0-synthetic-visualify",
+    "bytes": 857
+  },
+  {
+    "id": "pdf-08-crispr-cas9",
+    "inputType": "pdf",
+    "file": "pdf-08-crispr-cas9.pdf",
+    "mimeType": "application/pdf",
+    "domain": "biology",
+    "expectedVisualType": "flowchart",
+    "acceptableVisualTypes": [
+      "flowchart",
+      "sequence"
+    ],
+    "license": "CC0-synthetic-visualify",
+    "bytes": 836
+  },
+  {
+    "id": "pdf-09-printing-press",
+    "inputType": "pdf",
+    "file": "pdf-09-printing-press.pdf",
+    "mimeType": "application/pdf",
+    "domain": "history",
+    "expectedVisualType": "timeline",
+    "license": "CC0-synthetic-visualify",
+    "bytes": 875
+  },
+  {
+    "id": "pdf-10-industrial-rev",
+    "inputType": "pdf",
+    "file": "pdf-10-industrial-rev.pdf",
+    "mimeType": "application/pdf",
+    "domain": "history",
+    "expectedVisualType": "timeline",
+    "license": "CC0-synthetic-visualify",
+    "bytes": 886
+  },
+  {
+    "id": "img-01-rest-vs-graphql",
+    "inputType": "image",
+    "file": "img-01-rest-vs-graphql.png",
+    "mimeType": "image/png",
+    "domain": "programming",
+    "expectedVisualType": "comparison",
+    "license": "CC0-synthetic-visualify",
+    "bytes": 35221
+  },
+  {
+    "id": "img-02-docker-layers",
+    "inputType": "image",
+    "file": "img-02-docker-layers.png",
+    "mimeType": "image/png",
+    "domain": "programming",
+    "expectedVisualType": "flowchart",
+    "license": "CC0-synthetic-visualify",
+    "bytes": 34708
+  },
+  {
+    "id": "img-03-er-library",
+    "inputType": "image",
+    "file": "img-03-er-library.png",
+    "mimeType": "image/png",
+    "domain": "databases",
+    "expectedVisualType": "er_diagram",
+    "acceptableVisualTypes": [
+      "er_diagram",
+      "flowchart",
+      "mindmap"
+    ],
+    "license": "CC0-synthetic-visualify",
+    "bytes": 31924
+  },
+  {
+    "id": "img-04-sharding-vs-repl",
+    "inputType": "image",
+    "file": "img-04-sharding-vs-repl.png",
+    "mimeType": "image/png",
+    "domain": "databases",
+    "expectedVisualType": "comparison",
+    "license": "CC0-synthetic-visualify",
+    "bytes": 35988
+  },
+  {
+    "id": "img-05-tcp-congestion",
+    "inputType": "image",
+    "file": "img-05-tcp-congestion.png",
+    "mimeType": "image/png",
+    "domain": "networking",
+    "expectedVisualType": "flowchart",
+    "license": "CC0-synthetic-visualify",
+    "bytes": 34351
+  },
+  {
+    "id": "img-06-cdn-sequence",
+    "inputType": "image",
+    "file": "img-06-cdn-sequence.png",
+    "mimeType": "image/png",
+    "domain": "networking",
+    "expectedVisualType": "sequence",
+    "license": "CC0-synthetic-visualify",
+    "bytes": 32871
+  },
+  {
+    "id": "img-07-photosynthesis",
+    "inputType": "image",
+    "file": "img-07-photosynthesis.png",
+    "mimeType": "image/png",
+    "domain": "biology",
+    "expectedVisualType": "flowchart",
+    "license": "CC0-synthetic-visualify",
+    "bytes": 37996
+  },
+  {
+    "id": "img-08-immune-response",
+    "inputType": "image",
+    "file": "img-08-immune-response.png",
+    "mimeType": "image/png",
+    "domain": "biology",
+    "expectedVisualType": "comparison",
+    "license": "CC0-synthetic-visualify",
+    "bytes": 35514
+  },
+  {
+    "id": "img-09-space-race",
+    "inputType": "image",
+    "file": "img-09-space-race.png",
+    "mimeType": "image/png",
+    "domain": "history",
+    "expectedVisualType": "timeline",
+    "license": "CC0-synthetic-visualify",
+    "bytes": 32479
+  },
+  {
+    "id": "img-10-renaissance-map",
+    "inputType": "image",
+    "file": "img-10-renaissance-map.png",
+    "mimeType": "image/png",
+    "domain": "history",
+    "expectedVisualType": "mindmap",
+    "license": "CC0-synthetic-visualify",
+    "bytes": 35243
+  }
+]

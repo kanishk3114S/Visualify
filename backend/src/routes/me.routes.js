@@ -5,9 +5,9 @@ import { validateBody } from "../middleware/validate.js";
 import { deleteAccountSchema, profilePatchSchema } from "../schemas/profile.schema.js";
 import { createMeController } from "../controllers/me.controller.js";
 
-export function createMeRouter({ config, gateway, limiters, usageService = null, accountService = null }) {
+export function createMeRouter({ config, gateway, limiters, usageService = null, accountService = null, analyticsService = null }) {
   const router = Router();
-  const controller = createMeController(config, { usageService, accountService });
+  const controller = createMeController(config, { usageService, accountService, analyticsService });
 
   // Memory storage: the buffer is magic-byte checked and re-encoded, never written to disk.
   const avatarUpload = multer({

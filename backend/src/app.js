@@ -13,6 +13,7 @@ import { sendError } from "./utils/response.js";
 import { createSupabaseGateway } from "./config/supabase.js";
 import { createRedisClient } from "./config/redis.js";
 import { createUsageService } from "./services/usageService.js";
+import { createAnalyticsService } from "./services/analyticsService.js";
 import { createAccountService } from "./services/accountService.js";
 import { createGenerationStack } from "./generation/index.js";
 import { createNotesStack } from "./notes/index.js";
@@ -40,9 +41,10 @@ export function createApp({
   limiters = createRateLimiters({ redis }),
   sentry = initApiSentry({ config, logger }),
   usageService = createUsageService({ config, adminDb: gateway.createAdminClient?.() ?? null, logger }),
-  accountService = createAccountService({ gateway, logger }),
-  generation = createGenerationStack({ config, gateway, logger, redis, usageService }),
-  notes = createNotesStack({ config, gateway, generation, logger, usageService }),
+  analyticsService = createAnalyticsService({ config, adminDb: gateway.createAdminClient?.() ?? null, logger }),
+  accountService = createAccountService({ gateway, logger, analyticsService }),
+  generation = createGenerationStack({ config, gateway, logger, redis, usageService, analyticsService }),
+  notes = createNotesStack({ config, gateway, generation, logger, usageService, analyticsService, redis }),
 }) {
   const app = express();
   const allowedOrigins = new Set(config.frontendOrigins);
@@ -117,10 +119,11 @@ export function createApp({
 
   app.use("/api", limiters.api);
 
-  app.use("/api/v1", createApiRouter({ config, gateway, limiters, generation, notes, usageService, accountService, redis }));
+  app.use("/api/v1", createApiRouter({ config, gateway, limiters, generation, notes, usageService, analyticsService, accountService, redis }));
   app.locals.generation = generation;
   app.locals.notes = notes;
   app.locals.usage = usageService;
+  app.locals.analytics = analyticsService;
   app.locals.redis = redis;
   app.locals.sentry = sentry;
 

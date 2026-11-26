@@ -12,7 +12,7 @@ import { resolveBrowserPath } from "../config/env.js";
  */
 async function main() {
   const outDir = await fs.mkdtemp(path.join(os.tmpdir(), "visualify-smoke-"));
-  const browserPath = resolveBrowserPath();
+  const browserPath = resolveBrowserPath()?.path ?? undefined;
   const compiled = await compileDiagramSpecToScene(
     {
       kind: "sequence",

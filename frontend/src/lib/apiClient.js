@@ -190,3 +190,13 @@ export const foldersApi = {
   update: (id, patch) => apiRequest(`/folders/${encodeURIComponent(id)}`, { method: "PATCH", body: patch }).then((d) => d.folder),
   remove: (id) => apiRequest(`/folders/${encodeURIComponent(id)}`, { method: "DELETE" }),
 };
+
+export const adminApi = {
+  metrics: ({ from, to, signal } = {}) => {
+    const qs = new URLSearchParams();
+    if (from) qs.set("from", from);
+    if (to) qs.set("to", to);
+    const suffix = qs.toString() ? `?${qs.toString()}` : "";
+    return apiRequest(`/admin/metrics${suffix}`, { signal }).then((d) => d.report);
+  },
+};

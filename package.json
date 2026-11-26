@@ -27,9 +27,11 @@
     "test:e2e": "playwright test",
     "spike:local": "npm --workspace=backend/worker run spike:local",
     "spike:gemini": "npm --workspace=backend/worker run spike:gemini",
+    "eval:quality": "node backend/worker/src/scripts/runEval.js",
     "test:frontend": "npm --workspace=@visualify/frontend run test",
     "smoke:generation": "npm --workspace=@visualify/api run smoke:generation",
-    "smoke:live-api": "npm --workspace=@visualify/api run smoke:live-api"
+    "smoke:live-api": "npm --workspace=@visualify/api run smoke:live-api",
+    "smoke:staging": "node scripts/smokeStaging.js"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.14.0",

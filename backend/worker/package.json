@@ -15,6 +15,7 @@
     "test:watch": "vitest",
     "spike:local": "node src/scripts/runLocalSpike.js",
     "spike:gemini": "node src/scripts/runGeminiSpike.js",
+    "eval:quality": "node src/scripts/runEval.js",
     "smoke:docker": "node src/scripts/dockerSmoke.js"
   },
   "dependencies": {

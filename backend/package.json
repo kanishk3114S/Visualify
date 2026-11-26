@@ -12,7 +12,7 @@
     "start": "node src/server.js",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:rls:sql": "node --test ../supabase/tests/rls.pglite.test.js ../supabase/tests/notes.pglite.test.js ../supabase/tests/sources.pglite.test.js ../supabase/tests/learning_companion.pglite.test.js ../supabase/tests/phase6_hardening.pglite.test.js",
+    "test:rls:sql": "node --test ../supabase/tests/rls.pglite.test.js ../supabase/tests/notes.pglite.test.js ../supabase/tests/sources.pglite.test.js ../supabase/tests/learning_companion.pglite.test.js ../supabase/tests/phase6_hardening.pglite.test.js ../supabase/tests/phase65_closeout.pglite.test.js",
     "test:rls:live": "node --test ../supabase/tests/rls.live.test.js",
     "test:load": "node scripts/loadTest.js",
     "smoke:generation": "node scripts/smokeGeneration.js",

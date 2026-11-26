@@ -23,6 +23,7 @@ export function createFakeSupabase() {
     sourceFiles: new Map(), // id -> row
     objects: new Map(), // "bucket/path" -> { buffer, contentType }
     usageEvents: [],
+    productEvents: [],
     passwords: new Map(), // email -> password
     deletedUsers: new Set(),
     healthy: true,

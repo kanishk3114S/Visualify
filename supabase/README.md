@@ -13,11 +13,13 @@ Everything Supabase needs for Phases 1–6 lives here:
 | `migrations/0007_source_files_bucket.sql` | Private `source-files` bucket (20 MiB limit for PDF, JPEG, PNG, WebP) scoped to `{uid}/{sourceFileId}/...` |
 | `migrations/0008_learning_companion.sql` | Phase 5 `note_quizzes`, `note_flashcards`, `note_revision_guides`, `usage_events`, `note_exports` (`zip`, `scope`, `frame_id`), `note-exports` `application/zip` MIME allowlist, `'regenerate'` version kind |
 | `migrations/0009_phase6_hardening.sql` | Phase 6 `'selection'` export scope, extended `usage_events` event types & `consume_monthly_quota` advisory-lock RPC (`service_role` only) |
+| `migrations/0010_launch_closeout.sql` | Phase 6.5 idempotent quota refunds (`usage_events.refunded_at` / `correlation_id` + `refund_usage_event`), zero-PII `product_events` table, and `compute_product_metrics` RPC |
 | `tests/rls.pglite.test.js` | **Offline** verification of Phases 1–2 migrations on real Postgres (PGlite) — no credentials needed |
 | `tests/notes.pglite.test.js` | **Offline** verification of Phase 3 migrations (`0004`, `0005`) on real Postgres (PGlite) |
 | `tests/sources.pglite.test.js` | **Offline** verification of Phase 4 migrations (`0006`, `0007`) on real Postgres (PGlite) |
 | `tests/learning_companion.pglite.test.js` | **Offline** verification of Phase 5 migration (`0008`) on real Postgres (PGlite) |
 | `tests/phase6_hardening.pglite.test.js` | **Offline** verification of Phase 6 migration (`0009`), concurrent quota locks & 12-table account deletion cascade on PGlite |
+| `tests/phase65_closeout.pglite.test.js` | **Offline** verification of Phase 6.5 migration (`0010`), idempotent quota refund RPC privileges, `product_events` RLS, and `compute_product_metrics` math on PGlite |
 | `tests/rls.live.test.js` | **Live** cross-user verification against a real dev/staging project |
 | `tests/supabase-stub.sql` | Minimal emulation of Supabase's `auth`/`storage` schemas used only by the offline test. **Never apply it to a real project.** |
 
@@ -43,7 +45,7 @@ npx supabase@latest db push
 
 **Option B — Dashboard SQL editor**
 
-Open *SQL Editor* → paste and run `0001_profiles_and_rls.sql`, then `0002_avatars_storage_bucket.sql`, then `0003_generation_jobs.sql` (Phase 2), then `0004_folders_notes_versions_exports.sql` and `0005_note_storage_buckets.sql` (Phase 3), then `0006_source_files.sql` and `0007_source_files_bucket.sql` (Phase 4), then `0008_learning_companion.sql` (Phase 5), then `0009_phase6_hardening.sql` (Phase 6).
+Open *SQL Editor* → paste and run `0001_profiles_and_rls.sql`, then `0002_avatars_storage_bucket.sql`, then `0003_generation_jobs.sql` (Phase 2), then `0004_folders_notes_versions_exports.sql` and `0005_note_storage_buckets.sql` (Phase 3), then `0006_source_files.sql` and `0007_source_files_bucket.sql` (Phase 4), then `0008_learning_companion.sql` (Phase 5), then `0009_phase6_hardening.sql` (Phase 6), then `0010_launch_closeout.sql` (Phase 6.5).
 
 **Check it worked** (SQL editor):
 
@@ -55,7 +57,7 @@ select tgname from pg_trigger where tgname = 'on_auth_user_created';            
 select cmd from pg_policies where tablename = 'generation_jobs';                        -- 4 rows (0003)
 select indexname from pg_indexes where indexname = 'generation_jobs_one_active_per_owner'; -- 1 row (0003)
 select tablename, rowsecurity from pg_tables where schemaname = 'public'
-  and tablename in ('folders', 'notes', 'note_versions', 'note_drafts', 'note_exports', 'source_files', 'note_quizzes', 'note_flashcards', 'note_revision_guides', 'usage_events'); -- 10 rows, true (0004 + 0006 + 0008)
+  and tablename in ('folders', 'notes', 'note_versions', 'note_drafts', 'note_exports', 'source_files', 'note_quizzes', 'note_flashcards', 'note_revision_guides', 'usage_events', 'product_events'); -- 11 rows, true (0004 + 0006 + 0008 + 0010)
 select id, public, file_size_limit, allowed_mime_types from storage.buckets where id in ('note-assets', 'note-exports', 'source-files'); -- public = false, includes application/zip on note-exports (0005 + 0007 + 0008)
 ```
 

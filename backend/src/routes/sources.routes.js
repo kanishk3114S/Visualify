@@ -3,9 +3,9 @@ import multer from "multer";
 import { requireAuth } from "../middleware/auth.js";
 import { createSourcesController } from "../controllers/sources.controller.js";
 
-export function createSourcesRouter({ config, gateway, limiters }) {
+export function createSourcesRouter({ config, gateway, limiters, analyticsService = null }) {
   const router = Router();
-  const controller = createSourcesController(config);
+  const controller = createSourcesController(config, { analyticsService });
 
   const sourceUpload = multer({
     storage: multer.memoryStorage(),

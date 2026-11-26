@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { NavLink, Outlet, useLocation, useMatches, useNavigate } from "react-router-dom";
 import clsx from "clsx";
-import { FolderOpen, LayoutDashboard, LogOut, Menu, Settings, Sparkles, User, X } from "lucide-react";
+import { BarChart3, FolderOpen, LayoutDashboard, LogOut, Menu, Settings, Sparkles, User, X } from "lucide-react";
 import { Logo } from "../components/Layout.jsx";
 import { Avatar } from "../components/Avatar.jsx";
 import { useAuth } from "../features/auth/AuthContext.jsx";
@@ -19,10 +19,14 @@ const NAV = [
 
 /** rail: on large screens show icons only (labels stay available to assistive tech and as tooltips). */
 function NavItems({ onNavigate, rail = false }) {
+  const { data: profile } = useProfile();
   const label = rail ? "lg:sr-only" : undefined;
+  const items = profile?.isAdmin
+    ? [...NAV, { to: "/app/admin/metrics", label: "Admin metrics", icon: BarChart3 }]
+    : NAV;
   return (
     <ul className="space-y-1">
-      {NAV.map((item) => {
+      {items.map((item) => {
         const Icon = item.icon;
         if (item.soon) {
           // Release policy: unreleased features are labelled, never dead links.

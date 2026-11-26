@@ -3,6 +3,7 @@ import { loadConfig } from "../../src/config/env.js";
 import { createApp } from "../../src/app.js";
 import { createLogger } from "../../src/utils/logger.js";
 import { createUsageService } from "../../src/services/usageService.js";
+import { createAnalyticsService } from "../../src/services/analyticsService.js";
 import { createAccountService } from "../../src/services/accountService.js";
 import { createFakeSupabase } from "./fakeSupabase.js";
 import { createTestGenerationStack } from "./fakeGeneration.js";
@@ -39,9 +40,10 @@ export function buildTestApp(
   });
   const logger = createLogger({ ...config, logLevel: "debug" }, sink);
   const usageService = createUsageService({ config, logger, memoryEvents: fake.state.usageEvents });
-  const accountService = createAccountService({ gateway: fake.gateway, logger });
-  const generation = createTestGenerationStack({ config, logger, enabled: generationEnabled, supabaseState: fake.state, usageService, ...generationOptions });
-  const notes = createTestNotesStack({ generation, logger, usageService, ...notesOptions });
-  const app = createApp({ config, gateway: fake.gateway, logger, redis, sentry, usageService, accountService, generation, notes });
-  return { app, config, ...fake, generation, notes, usageService, accountService, logLines, logText: () => logLines.join("") };
+  const analyticsService = createAnalyticsService({ config, logger, memoryEvents: fake.state.productEvents });
+  const accountService = createAccountService({ gateway: fake.gateway, logger, analyticsService });
+  const generation = createTestGenerationStack({ config, logger, enabled: generationEnabled, supabaseState: fake.state, usageService, analyticsService, ...generationOptions });
+  const notes = createTestNotesStack({ generation, logger, usageService, analyticsService, ...notesOptions });
+  const app = createApp({ config, gateway: fake.gateway, logger, redis, sentry, usageService, analyticsService, accountService, generation, notes });
+  return { app, config, ...fake, generation, notes, usageService, analyticsService, accountService, logLines, logText: () => logLines.join("") };
 }

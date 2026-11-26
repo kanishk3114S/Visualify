@@ -19,8 +19,8 @@ export function createHealthController(gateway, { config = null, redis = null } 
 
   function checkRenderer() {
     try {
-      const resolved = resolveBrowserPath(config?.generation?.browserPath);
-      if (resolved && fs.existsSync(resolved)) return "ok";
+      const resolved = resolveBrowserPath({ envPath: config?.generation?.browserPath });
+      if (resolved?.path && fs.existsSync(resolved.path)) return "ok";
       return config?.nodeEnv === "test" ? "ok" : "unavailable";
     } catch {
       return config?.nodeEnv === "test" ? "ok" : "unavailable";

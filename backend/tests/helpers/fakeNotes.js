@@ -523,7 +523,7 @@ export function createFakeCompanion({ enabled = true } = {}) {
   };
 }
 
-export function createTestNotesStack({ generation, logger, companionEnabled = true, usageService = null }) {
+export function createTestNotesStack({ generation, logger, companionEnabled = true, usageService = null, analyticsService = null }) {
   const db = new InMemoryNotesDb(generation.store);
   const storage = new InMemoryNoteStorage();
   const renderer = createFakeRenderer();
@@ -538,7 +538,7 @@ export function createTestNotesStack({ generation, logger, companionEnabled = tr
     },
   });
   const usageRecorder = async (ev) => db.usageEvents.push(ev);
-  const service = createNotesService({ renderer, jobStore: generation.store, tasks, companion, compileSection, usageRecorder, usageService, logger });
+  const service = createNotesService({ renderer, jobStore: generation.store, tasks, companion, compileSection, usageRecorder, usageService, analyticsService, logger });
   const contextFor = (req) => ({ userId: req.user.id, db: req.db, repo: db.repositoryFor(req.user.id), files: storage.forUser(req.user.id) });
   return { service, contextFor, db, storage, renderer, companion, tasks };
 }

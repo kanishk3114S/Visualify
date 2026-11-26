@@ -71,7 +71,10 @@ const fail = (code, message, details = null) => ({ success: false, data: null, e
  * Intercepts /api/v1/* with an in-memory profile. Returns the call log and
  * a handle to the current profile so tests can assert on what was sent.
  */
-export async function mockApi(page, { profile = makeProfile(), takenUsernames = [], failMe = false, generations = null, notes, sources = null, usage = null, deletePassword = "Password123!" } = {}) {
+export async function mockApi(
+  page,
+  { profile = makeProfile(), takenUsernames = [], failMe = false, generations = null, notes, sources = null, usage = null, adminMetrics = null, deletePassword = "Password123!" } = {}
+) {
   const sourceStore = sources ?? new Map();
   const state = {
     profile: structuredClone(profile),
@@ -79,6 +82,36 @@ export async function mockApi(page, { profile = makeProfile(), takenUsernames = 
     generations,
     notes: notes === undefined ? createNotesMock({ generations, sources: sourceStore }) : notes,
     sources: sourceStore,
+    adminMetrics: adminMetrics ?? {
+      counts: {
+        signups: 24,
+        activatedUsers: 15,
+        generationStarted: 40,
+        generationCompleted: 36,
+        generationFailed: 4,
+        generationCancelled: 2,
+        generationRepaired: 2,
+        regenerationActions: 3,
+        notesSaved: 28,
+        notesExported: 14,
+        notesEdited: 10,
+        returnEligibleUsers: 16,
+        returnUsers: 7,
+        promptTokens: 32000,
+        outputTokens: 24000,
+      },
+      metrics: {
+        activationRate: 0.625,
+        generationCompletionRate: 0.9474,
+        timeToFirstUsefulVisualMs: { p50: 4210, p95: 9420 },
+        saveRate: 0.7778,
+        sevenDayLibraryReturnRate: 0.4375,
+        exportRate: 0.5,
+        editEngagementRate: 0.3571,
+        regenerationRate: 0.125,
+        costPerCompletedVisualUsd: 0.000356,
+      },
+    },
     usage: usage ?? {
       periodStart: "2026-11-01T00:00:00.000Z",
       resetsAt: "2026-12-01T00:00:00.000Z",
@@ -209,6 +242,22 @@ export async function mockApi(page, { profile = makeProfile(), takenUsernames = 
     }
     if (/^\/api\/v1\/(notes|folders|exports)(\/|$)/.test(url.pathname) && state.notes) {
       return state.notes.handle({ route, req, url, json, cors, ok, fail });
+    }
+    if (url.pathname === "/api/v1/admin/metrics" && req.method() === "GET") {
+      if (!state.profile.isAdmin) {
+        return json(403, fail("FORBIDDEN", "Administrator access required."));
+      }
+      const fromParam = url.searchParams.get("from");
+      const toParam = url.searchParams.get("to");
+      const toDate = toParam ? new Date(toParam) : new Date();
+      const fromDate = fromParam ? new Date(fromParam) : new Date(toDate.getTime() - 30 * 86_400_000);
+      if (!Number.isFinite(toDate.getTime()) || !Number.isFinite(fromDate.getTime()) || toDate < fromDate) {
+        return json(400, fail("VALIDATION_ERROR", "Invalid metrics date window."));
+      }
+      if (toDate.getTime() - fromDate.getTime() > 90 * 86_400_000) {
+        return json(400, fail("VALIDATION_ERROR", "Metrics window cannot exceed 90 days."));
+      }
+      return json(200, ok({ report: { window: { from: fromDate.toISOString(), to: toDate.toISOString() }, ...state.adminMetrics } }));
     }
     return json(404, fail("NOT_FOUND", "The requested resource was not found."));
   });

@@ -28,7 +28,7 @@ async function listBucketPathsRecursive(storageBucket, prefix) {
  * 2. Sweeps every owned object across all 4 private Storage buckets FIRST.
  * 3. Permanently deletes the `auth.users` row (which cascades every user table).
  */
-export function createAccountService({ gateway, logger }) {
+export function createAccountService({ gateway, logger, analyticsService = null }) {
   return {
     async deleteAccount({ user, reqDb, password = null }) {
       let reauthenticated = false;
@@ -74,6 +74,8 @@ export function createAccountService({ gateway, logger }) {
         }
       }
 
+      analyticsService?.record("account_deleted", null, { removedObjects });
+      await analyticsService?.flush?.();
       await gateway.deleteAuthUser(user.id);
       logger?.info({ userId: user.id, event: "account_deleted", removedObjects }, "account deleted");
       return { deleted: true, removedObjects };

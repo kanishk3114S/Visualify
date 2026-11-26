@@ -92,24 +92,42 @@ export async function runGenerationPipeline({ job, signal, onStage, onProgress, 
   if (!parsed.success) throw new PipelineError("SCHEMA_VALIDATION_FAILED", "plan failed validation");
   const plan = parsed.data;
 
-  // 4. Composing: compile sections concurrently (bounded) while preserving deterministic order.
+  // 4. Composing: compile sections concurrently (bounded) with linked sibling abort and global CLI semaphore.
   await onStage("composing", STAGE_PROGRESS.composing);
   const warnings = [...(extractedSource?.warnings ?? []), ...plan.warnings];
   const step = Math.floor((STAGE_PROGRESS.persisting - STAGE_PROGRESS.composing) / plan.sections.length);
   const compiledEntries = new Array(plan.sections.length);
   const sectionConcurrency = Math.min(3, plan.sections.length);
+  const siblingController = new AbortController();
+  const onParentAbort = () => siblingController.abort(signal?.reason);
+  if (signal?.aborted) siblingController.abort(signal.reason);
+  else signal?.addEventListener("abort", onParentAbort, { once: true });
+
+  const semaphore = deps.renderSemaphore ?? null;
   let nextIndex = 0;
   let completedCount = 0;
 
   async function compileWorker() {
     while (true) {
+      if (siblingController.signal.aborted || signal?.aborted) {
+        throw cancelled(signal);
+      }
       const index = nextIndex;
       nextIndex += 1;
       if (index >= plan.sections.length) return;
       const section = plan.sections[index];
-      throwIfAborted(signal);
       try {
-        const compiled = await deps.compileSection(section.diagramSpec, { signal, visualStyle });
+        const invokeCompile = () =>
+          deps.compileSection(section.diagramSpec, {
+            signal: siblingController.signal,
+            visualStyle,
+          });
+        const compiled = semaphore
+          ? await semaphore.run(invokeCompile, { signal: siblingController.signal })
+          : await invokeCompile();
+        if (siblingController.signal.aborted || signal?.aborted) {
+          throw cancelled(signal);
+        }
         const ownTitle = typeof section.diagramSpec.title === "string" ? section.diagramSpec.title.trim().toLowerCase() : null;
         const title = ownTitle && ownTitle === section.title.trim().toLowerCase() ? null : section.title;
         compiledEntries[index] = {
@@ -124,7 +142,10 @@ export async function runGenerationPipeline({ job, signal, onStage, onProgress, 
           mermaidBlock: compiled.mermaidSource ? `%% section: ${section.id}\n${compiled.mermaidSource}` : null,
         };
       } catch (err) {
-        if (signal?.aborted || err?.code === "CLI_CANCELLED") throw cancelled(signal);
+        if (signal?.aborted || siblingController.signal.aborted || err?.name === "AbortError" || err?.code === "CLI_CANCELLED" || err?.code === "CANCELLED") {
+          siblingController.abort(signal?.reason ?? err);
+          throw cancelled(signal);
+        }
         compiledEntries[index] = {
           warning: `The diagram for "${section.title}" couldn't be drawn; its explanation is still included.`,
         };
@@ -134,7 +155,15 @@ export async function runGenerationPipeline({ job, signal, onStage, onProgress, 
     }
   }
 
-  await Promise.all(Array.from({ length: sectionConcurrency }, () => compileWorker()));
+  try {
+    await Promise.all(Array.from({ length: sectionConcurrency }, () => compileWorker()));
+  } catch (err) {
+    // Abort any running or queued siblings immediately on cancel or fatal failure.
+    siblingController.abort(err);
+    throw err;
+  } finally {
+    signal?.removeEventListener("abort", onParentAbort);
+  }
   throwIfAborted(signal);
 
   const parts = [];
@@ -168,6 +197,10 @@ export async function runGenerationPipeline({ job, signal, onStage, onProgress, 
     usage: {
       durationMs: Date.now() - startedAt,
       plannerLatencyMs: planned.latencyMs ?? null,
+      model: planned.model ?? null,
+      primaryModel: planned.primaryModel ?? planned.model ?? null,
+      attempts: planned.attempts ?? 1,
+      failedOver: Boolean(planned.failedOver),
       repaired: Boolean(planned.repaired),
       promptTokens: planned.usageMetadata?.promptTokenCount ?? null,
       outputTokens: planned.usageMetadata?.candidatesTokenCount ?? null,

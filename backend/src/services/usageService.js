@@ -13,10 +13,64 @@ export const BILLABLE_EVENT_TYPES = Object.freeze([
   "section_regenerate",
 ]);
 
+/** Provider/system failure codes eligible for automatic quota refund (Phase 6.5 §1.6). */
+export const REFUNDABLE_FAILURE_CODES = new Set([
+  "AI_BUSY",
+  "AI_TIMEOUT",
+  "GENERATION_TIMEOUT",
+  "AI_UNAVAILABLE",
+  "PROVIDER_ERROR",
+  "PROVIDER_RATE_LIMIT",
+  "PROVIDER_TRANSIENT_ERROR",
+  "PROVIDER_API_ERROR",
+  "PROVIDER_TIMEOUT",
+  "JOB_TIMEOUT",
+  "EMPTY_MODEL_RESPONSE",
+  "SCHEMA_VALIDATION_FAILED",
+  "INVALID_PLAN",
+  "RENDER_FAILED",
+  "COMPOSE_FAILED",
+  "COMPANION_FAILED",
+  "INTERRUPTED",
+  "DATABASE_ERROR",
+  "GENERATION_FAILED",
+  "INTERNAL_ERROR",
+]);
+
+/** Codes that MUST NEVER receive a quota refund (user cancel, validation, content policy, quota). */
+export const NON_REFUNDABLE_FAILURE_CODES = new Set([
+  "CANCELLED",
+  "CONTENT_BLOCKED",
+  "MODEL_RESPONSE_BLOCKED",
+  "PROVIDER_INVALID_ARGUMENT",
+  "VALIDATION_ERROR",
+  "INVALID_INPUT",
+  "INVALID_SCENE",
+  "CORRUPT_FILE",
+  "ENCRYPTED_PDF",
+  "PAGE_LIMIT_EXCEEDED",
+  "INVALID_PAGE_RANGE",
+  "EMPTY_SOURCE",
+  "SOURCE_NOT_FOUND",
+  "EXTRACTION_FAILED",
+  "QUOTA_EXCEEDED",
+  "RATE_LIMITED",
+]);
+
+export function isRefundableFailureCode(safeCode, internalCode = null) {
+  if (NON_REFUNDABLE_FAILURE_CODES.has(safeCode) || (internalCode && NON_REFUNDABLE_FAILURE_CODES.has(internalCode))) {
+    return false;
+  }
+  return REFUNDABLE_FAILURE_CODES.has(safeCode) || Boolean(internalCode && REFUNDABLE_FAILURE_CODES.has(internalCode));
+}
+
 const ALLOWED_META_KEYS = new Set([
   "noteId",
   "jobId",
   "modelId",
+  "model",
+  "attempts",
+  "failedOver",
   "inputType",
   "format",
   "scope",
@@ -73,18 +127,35 @@ export function createUsageService({ config, adminDb = null, logger = null, memo
   return {
     limit,
 
-    async consumeQuota({ userId, eventType, units = 1, metadata = {} }) {
+    async consumeQuota({ userId, eventType, units = 1, metadata = {}, correlationId = null }) {
       const cleanMeta = sanitizeUsageMetadata(metadata);
       const { periodStart, resetsAt } = currentUtcMonthBounds();
       if (!ensureServerMeteringAvailable()) {
-        return { allowed: true, limit, used: 0, resetsAt, eventId: null };
+        return { allowed: true, limit, used: 0, resetsAt, eventId: null, correlationId };
       }
 
       if (memoryEvents) {
+        if (correlationId) {
+          const dup = memoryEvents.find((e) => e.owner_id === userId && e.correlation_id === correlationId);
+          if (dup) {
+            const usedNow = memoryEvents
+              .filter(
+                (e) =>
+                  e.owner_id === userId &&
+                  !e.refunded_at &&
+                  BILLABLE_EVENT_TYPES.includes(e.event_type) &&
+                  e.created_at >= periodStart &&
+                  e.created_at < resetsAt
+              )
+              .reduce((acc, e) => acc + (e.units ?? 1), 0);
+            return { allowed: true, limit, used: usedNow, resetsAt, eventId: dup.id, correlationId };
+          }
+        }
         const used = memoryEvents
           .filter(
             (e) =>
               e.owner_id === userId &&
+              !e.refunded_at &&
               BILLABLE_EVENT_TYPES.includes(e.event_type) &&
               e.created_at >= periodStart &&
               e.created_at < resetsAt
@@ -101,10 +172,12 @@ export function createUsageService({ config, adminDb = null, logger = null, memo
           event_type: eventType,
           units,
           metadata: cleanMeta,
+          correlation_id: correlationId ?? null,
+          refunded_at: null,
           created_at: new Date().toISOString(),
         };
         memoryEvents.push(row);
-        return { allowed: true, limit, used: used + units, resetsAt, eventId: row.id };
+        return { allowed: true, limit, used: used + units, resetsAt, eventId: row.id, correlationId: row.correlation_id };
       }
 
       const { data, error } = await adminDb.rpc("consume_monthly_quota", {
@@ -114,6 +187,7 @@ export function createUsageService({ config, adminDb = null, logger = null, memo
         p_billable_types: BILLABLE_EVENT_TYPES,
         p_units: units,
         p_metadata: cleanMeta,
+        ...(correlationId ? { p_correlation_id: correlationId } : {}),
       });
       if (error) {
         logger?.error({ userId, eventType, errorCode: error.code ?? "QUOTA_RPC_FAILED" }, "quota RPC failed (failing closed)");
@@ -135,7 +209,28 @@ export function createUsageService({ config, adminDb = null, logger = null, memo
         used: Number(row.used ?? 0),
         resetsAt: row.resets_at ? new Date(row.resets_at).toISOString() : resetsAt,
         eventId: row.event_id ?? null,
+        correlationId,
       };
+    },
+
+    async refundQuota({ userId, correlationId }) {
+      if (!userId || !correlationId) return false;
+      if (!ensureServerMeteringAvailable()) return false;
+      if (memoryEvents) {
+        const target = memoryEvents.find((e) => e.owner_id === userId && e.correlation_id === correlationId && !e.refunded_at);
+        if (!target) return false;
+        target.refunded_at = new Date().toISOString();
+        return true;
+      }
+      const { data, error } = await adminDb.rpc("refund_usage_event", {
+        p_owner_id: userId,
+        p_correlation_id: correlationId,
+      });
+      if (error) {
+        logger?.warn({ userId, correlationId, errorCode: error.code ?? "QUOTA_REFUND_FAILED" }, "quota refund RPC failed");
+        return false;
+      }
+      return Boolean(data);
     },
 
     async recordExport({ userId, metadata = {} }) {
@@ -172,18 +267,20 @@ export function createUsageService({ config, adminDb = null, logger = null, memo
       const { periodStart, resetsAt } = currentUtcMonthBounds();
       let rows = [];
       if (memoryEvents) {
-        rows = memoryEvents.filter((e) => e.owner_id === userId && e.created_at >= periodStart && e.created_at < resetsAt);
+        rows = memoryEvents.filter(
+          (e) => e.owner_id === userId && !e.refunded_at && e.created_at >= periodStart && e.created_at < resetsAt
+        );
       } else if (db?.from) {
         const { data, error } = await db
           .from("usage_events")
-          .select("event_type, units, created_at")
+          .select("event_type, units, created_at, refunded_at")
           .eq("owner_id", userId)
           .gte("created_at", periodStart)
           .lt("created_at", resetsAt);
         if (error) {
           logger?.warn({ userId, errorCode: error.code ?? "USAGE_READ_WARN" }, "failed reading usage summary");
         } else {
-          rows = data ?? [];
+          rows = (data ?? []).filter((r) => !r.refunded_at);
         }
       }
       let used = 0;

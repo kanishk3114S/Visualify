@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import {
   extractSceneFrames,
   filterSceneToElementIds,
@@ -7,6 +8,7 @@ import {
   validateEditableScene,
 } from "@visualify/worker";
 import { AppError } from "../utils/errors.js";
+import { isRefundableFailureCode } from "../services/usageService.js";
 import { notFound } from "./errors.js";
 import { NOTE_ASSETS_BUCKET, NOTE_EXPORTS_BUCKET } from "./noteFiles.js";
 import { createZipBuffer } from "./zipArchive.js";
@@ -163,7 +165,7 @@ export function fileSlug(title) {
  *   { userId, repo (RLS-scoped repository), files (RLS-scoped storage), db (user client) }
  * Shared deps: renderer (CLI), jobStore (generation jobs), tasks (background queue).
  */
-export function createNotesService({ renderer, jobStore, tasks, companion = null, compileSection = null, usageRecorder = null, usageService = null, logger }) {
+export function createNotesService({ renderer, jobStore, tasks, companion = null, compileSection = null, usageRecorder = null, usageService = null, analyticsService = null, logger }) {
   const log = logger?.child ? logger.child({ component: "notes" }) : logger;
   let taskSeq = 0;
 
@@ -182,19 +184,35 @@ export function createNotesService({ renderer, jobStore, tasks, companion = null
     if (code === "PROVIDER_TIMEOUT" || err?.name === "AbortError") {
       return new AppError(504, "AI_TIMEOUT", "The AI request took too long. Please try again.", { cause: err });
     }
+    if (code === "PROVIDER_TRANSIENT_ERROR") {
+      return new AppError(503, "AI_UNAVAILABLE", "The AI service is temporarily unavailable. Please try again.", { cause: err });
+    }
     if (code === "MODEL_RESPONSE_BLOCKED") {
       return new AppError(422, "CONTENT_BLOCKED", "The request couldn't be completed for this content.", { cause: err });
+    }
+    if (code === "PROVIDER_INVALID_ARGUMENT") {
+      return new AppError(400, "VALIDATION_ERROR", "This request couldn't be processed by the AI provider.", { cause: err });
+    }
+    if (code === "SCHEMA_VALIDATION_FAILED" || code === "EMPTY_MODEL_RESPONSE") {
+      return new AppError(502, code, "Couldn't generate a valid study response. Please try again.", { cause: err });
     }
     return new AppError(502, "COMPANION_FAILED", "Couldn't generate a study response right now. Please try again.", { cause: err });
   }
 
-  async function enforceCompanionQuota(ctx, eventType, metadata = {}) {
+  async function enforceCompanionQuota(ctx, eventType, metadata = {}, correlationId = null) {
     if (usageService) {
-      await usageService.consumeQuota({ userId: ctx.userId, eventType, units: 1, metadata });
+      await usageService.consumeQuota({ userId: ctx.userId, eventType, units: 1, metadata, correlationId });
       return;
     }
     if (usageRecorder) {
-      await usageRecorder({ ownerId: ctx.userId, eventType, units: 1, metadata }).catch(() => {});
+      await usageRecorder({ ownerId: ctx.userId, eventType, units: 1, metadata, correlationId }).catch(() => {});
+    }
+  }
+
+  async function refundCompanionQuota(ctx, correlationId, mappedErr, rawErr) {
+    if (!correlationId || !usageService?.refundQuota) return;
+    if (isRefundableFailureCode(mappedErr?.code, rawErr?.code)) {
+      await usageService.refundQuota({ userId: ctx.userId, correlationId }).catch(() => {});
     }
   }
 
@@ -255,7 +273,7 @@ export function createNotesService({ renderer, jobStore, tasks, companion = null
       } catch (err) {
         log?.warn({ noteId, userId: ctx.userId, errorCode: err?.code ?? "PREVIEW_FAILED" }, "note preview failed");
       }
-    });
+    }, { userId: ctx.userId, noteId, versionId, scene });
   }
 
   async function noteDetail(ctx, note) {
@@ -290,7 +308,9 @@ export function createNotesService({ renderer, jobStore, tasks, companion = null
 
     async createFolder(ctx, { name, parentId }) {
       if (parentId) await requireFolder(ctx, parentId);
-      return toFolderDto(await ctx.repo.createFolder({ name, parentId }));
+      const folder = toFolderDto(await ctx.repo.createFolder({ name, parentId }));
+      analyticsService?.record("folder_created", ctx.userId, { folderId: folder.id, hasParent: Boolean(parentId) });
+      return folder;
     },
 
     async updateFolder(ctx, id, body) {
@@ -355,12 +375,20 @@ export function createNotesService({ renderer, jobStore, tasks, companion = null
       );
       schedulePreview(ctx, created.noteId, created.versionId, scene ?? job.scene_json);
       const note = await requireNote(ctx, created.noteId);
+      analyticsService?.record("note_saved", ctx.userId, {
+        noteId: created.noteId,
+        jobId: job.id,
+        sourceType: note.source_type ?? "prompt",
+      });
       return noteDetail(ctx, note);
     },
 
     async getNote(ctx, id, { markOpened = false } = {}) {
       const note = await requireNote(ctx, id);
-      if (markOpened) await ctx.repo.markOpened(id).catch(() => {});
+      if (markOpened) {
+        await ctx.repo.markOpened(id).catch(() => {});
+        analyticsService?.record("note_opened", ctx.userId, { noteId: id });
+      }
       return noteDetail(ctx, note);
     },
 
@@ -438,12 +466,14 @@ export function createNotesService({ renderer, jobStore, tasks, companion = null
       const created = await ctx.repo.restoreVersion(id, versionId);
       const full = await ctx.repo.getVersion(id, created.id);
       schedulePreview(ctx, id, full.id, full.scene_json);
+      analyticsService?.record("note_version_restored", ctx.userId, { noteId: id, versionId: full.id });
       return { version: toVersionMetaDto(full, full.id), sceneJson: full.scene_json, draftRevision: 0 };
     },
 
     async saveDraft(ctx, id, { sceneJson, baseRevision }) {
       const scene = cleanScene(sceneJson);
       const saved = await ctx.repo.saveDraft(id, scene, baseRevision);
+      analyticsService?.record("note_edited", ctx.userId, { noteId: id, revision: saved.revision });
       return { revision: saved.revision, savedAt: saved.updated_at };
     },
 
@@ -534,6 +564,7 @@ export function createNotesService({ renderer, jobStore, tasks, companion = null
         });
         const signed = await ctx.files.sign(NOTE_EXPORTS_BUCKET, path, SIGNED_URL_TTL_SECONDS, { download: `${fileSlug(note.title)}.${EXT[format]}` });
         await recordExportUsage(ctx, { noteId: id, format, scope, elementCount: targetScene?.elements?.length ?? 0 });
+        analyticsService?.record("note_exported", ctx.userId, { noteId: id, format, scope });
         return toExportDto(done, signed);
       } catch (err) {
         log?.warn({ noteId: id, userId: ctx.userId, exportId: row.id, format, errorCode: err?.code ?? "EXPORT_FAILED" }, "export failed");
@@ -566,7 +597,8 @@ export function createNotesService({ renderer, jobStore, tasks, companion = null
     async explainSelection(ctx, id, { selectedElements, question = "" }) {
       const note = await requireNote(ctx, id);
       requireAiCompanion();
-      await enforceCompanionQuota(ctx, "explain_node", { noteId: id, count: selectedElements?.length ?? 0 });
+      const correlationId = randomUUID();
+      await enforceCompanionQuota(ctx, "explain_node", { noteId: id, count: selectedElements?.length ?? 0 }, correlationId);
       const { version, scene } = await workingState(ctx, note);
       try {
         const res = await companion.explainSelection({
@@ -583,8 +615,10 @@ export function createNotesService({ renderer, jobStore, tasks, companion = null
           relatedConcepts: res.relatedConcepts ?? [],
         };
       } catch (err) {
+        const mapped = mapAiError(err);
+        await refundCompanionQuota(ctx, correlationId, mapped, err);
         log?.warn({ noteId: id, userId: ctx.userId, errorCode: err?.code ?? "COMPANION_FAILED" }, "explain selection failed");
-        throw mapAiError(err);
+        throw mapped;
       }
     },
 
@@ -592,7 +626,8 @@ export function createNotesService({ renderer, jobStore, tasks, companion = null
       const note = await requireNote(ctx, id);
       if (!note.current_version_id) throw new AppError(409, "NOTE_HAS_NO_VERSION", "This note has no version to study yet.");
       requireAiCompanion();
-      await enforceCompanionQuota(ctx, "quiz", { noteId: id, difficulty, count: questionCount });
+      const correlationId = randomUUID();
+      await enforceCompanionQuota(ctx, "quiz", { noteId: id, difficulty, count: questionCount }, correlationId);
       const { version, scene } = await workingState(ctx, note);
       let res;
       try {
@@ -604,8 +639,10 @@ export function createNotesService({ renderer, jobStore, tasks, companion = null
           questionCount,
         });
       } catch (err) {
+        const mapped = mapAiError(err);
+        await refundCompanionQuota(ctx, correlationId, mapped, err);
         log?.warn({ noteId: id, userId: ctx.userId, errorCode: err?.code ?? "COMPANION_FAILED" }, "quiz generation failed");
-        throw mapAiError(err);
+        throw mapped;
       }
       const row = await ctx.repo.createQuiz({
         noteId: id,
@@ -641,7 +678,8 @@ export function createNotesService({ renderer, jobStore, tasks, companion = null
       const note = await requireNote(ctx, id);
       if (!note.current_version_id) throw new AppError(409, "NOTE_HAS_NO_VERSION", "This note has no version to study yet.");
       requireAiCompanion();
-      await enforceCompanionQuota(ctx, "flashcards", { noteId: id, count: cardCount });
+      const correlationId = randomUUID();
+      await enforceCompanionQuota(ctx, "flashcards", { noteId: id, count: cardCount }, correlationId);
       const { version, scene } = await workingState(ctx, note);
       let res;
       try {
@@ -652,8 +690,10 @@ export function createNotesService({ renderer, jobStore, tasks, companion = null
           cardCount,
         });
       } catch (err) {
+        const mapped = mapAiError(err);
+        await refundCompanionQuota(ctx, correlationId, mapped, err);
         log?.warn({ noteId: id, userId: ctx.userId, errorCode: err?.code ?? "COMPANION_FAILED" }, "flashcards generation failed");
-        throw mapAiError(err);
+        throw mapped;
       }
       const rows = await ctx.repo.replaceFlashcards({
         noteId: id,
@@ -679,7 +719,8 @@ export function createNotesService({ renderer, jobStore, tasks, companion = null
       const note = await requireNote(ctx, id);
       if (!note.current_version_id) throw new AppError(409, "NOTE_HAS_NO_VERSION", "This note has no version to study yet.");
       requireAiCompanion();
-      await enforceCompanionQuota(ctx, "revision", { noteId: id });
+      const correlationId = randomUUID();
+      await enforceCompanionQuota(ctx, "revision", { noteId: id }, correlationId);
       const { version, scene } = await workingState(ctx, note);
       let res;
       try {
@@ -689,8 +730,10 @@ export function createNotesService({ renderer, jobStore, tasks, companion = null
           sceneJson: scene,
         });
       } catch (err) {
+        const mapped = mapAiError(err);
+        await refundCompanionQuota(ctx, correlationId, mapped, err);
         log?.warn({ noteId: id, userId: ctx.userId, errorCode: err?.code ?? "COMPANION_FAILED" }, "revision guide generation failed");
-        throw mapAiError(err);
+        throw mapped;
       }
       const guideJson = {
         summary: res.summary,
@@ -710,7 +753,8 @@ export function createNotesService({ renderer, jobStore, tasks, companion = null
     async askNote(ctx, id, { question }) {
       const note = await requireNote(ctx, id);
       requireAiCompanion();
-      await enforceCompanionQuota(ctx, "ask_note", { noteId: id });
+      const correlationId = randomUUID();
+      await enforceCompanionQuota(ctx, "ask_note", { noteId: id }, correlationId);
       const { version, scene } = await workingState(ctx, note);
       try {
         const res = await companion.askNote({
@@ -725,8 +769,10 @@ export function createNotesService({ renderer, jobStore, tasks, companion = null
           citations: res.citations ?? [],
         };
       } catch (err) {
+        const mapped = mapAiError(err);
+        await refundCompanionQuota(ctx, correlationId, mapped, err);
         log?.warn({ noteId: id, userId: ctx.userId, errorCode: err?.code ?? "COMPANION_FAILED" }, "ask note failed");
-        throw mapAiError(err);
+        throw mapped;
       }
     },
 
@@ -741,7 +787,8 @@ export function createNotesService({ renderer, jobStore, tasks, companion = null
       if (!compileSection) {
         throw new AppError(503, "AI_UNAVAILABLE", "Diagram compiler is unavailable.");
       }
-      await enforceCompanionQuota(ctx, "section_regenerate", { noteId: id, sectionId });
+      const correlationId = randomUUID();
+      await enforceCompanionQuota(ctx, "section_regenerate", { noteId: id, sectionId }, correlationId);
 
       let regen;
       let compiled;
@@ -757,8 +804,10 @@ export function createNotesService({ renderer, jobStore, tasks, companion = null
         });
         compiled = await compileSection(regen.section.diagramSpec, { visualStyle });
       } catch (err) {
+        const mapped = mapAiError(err);
+        await refundCompanionQuota(ctx, correlationId, mapped, err);
         log?.warn({ noteId: id, userId: ctx.userId, sectionId, errorCode: err?.code ?? "REGENERATE_FAILED" }, "section regeneration failed");
-        throw mapAiError(err);
+        throw mapped;
       }
 
       const nextScene = replaceSectionInScene({

@@ -26,6 +26,7 @@ import { LibraryPage } from "../features/notes/LibraryPage.jsx";
 import { NoteReadPage } from "../features/notes/NoteReadPage.jsx";
 import { NoteEditorPage } from "../features/notes/NoteEditorPage.jsx";
 import { NotePresentPage } from "../features/notes/NotePresentPage.jsx";
+import { AdminMetricsPage } from "../features/admin/AdminMetricsPage.jsx";
 
 // Phase 0 editor harness: gated to dev builds only so Playwright coverage
 // keeps working on the dev server without exposing /spike in production builds.
@@ -77,6 +78,7 @@ export const router = createBrowserRouter([
               { path: "settings", element: <SettingsPage /> },
               { path: "settings/account", element: <AccountSettingsPage /> },
               { path: "settings/preferences", element: <PreferencesPage /> },
+              { path: "admin/metrics", element: <AdminMetricsPage /> },
               { path: "*", element: <Navigate to="/404" replace /> },
             ],
           },

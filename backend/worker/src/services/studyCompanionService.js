@@ -41,6 +41,7 @@ export async function explainSelection({
   signal,
   client = null,
   model = null,
+  fallbackModels,
   timeoutMs = 25_000,
 }) {
   const noteContext = buildCompactNoteContext({ title, learningPlan, sceneJson, sourceFile });
@@ -69,12 +70,13 @@ export async function explainSelection({
     jsonSchema: companionJsonSchema(ExplainSelectionOutputSchema),
     repairLabel: "selection explanation",
     thinkingLevel: "MINIMAL",
+    fallbackModels,
     signal,
     client,
     model,
     timeoutMs,
   });
-  return { ...res.data, model: res.model, latencyMs: res.latencyMs, usageMetadata: res.usageMetadata };
+  return { ...res.data, model: res.model, attempts: res.attempts, failedOver: res.failedOver, latencyMs: res.latencyMs, usageMetadata: res.usageMetadata };
 }
 
 export async function generateQuiz({
@@ -87,6 +89,7 @@ export async function generateQuiz({
   signal,
   client = null,
   model = null,
+  fallbackModels,
   timeoutMs = 30_000,
 }) {
   const noteContext = buildCompactNoteContext({ title, learningPlan, sceneJson, sourceFile });
@@ -107,12 +110,13 @@ export async function generateQuiz({
     jsonSchema: companionJsonSchema(QuizOutputSchema),
     repairLabel: "quick quiz",
     thinkingLevel: "MINIMAL",
+    fallbackModels,
     signal,
     client,
     model,
     timeoutMs,
   });
-  return { ...res.data, model: res.model, latencyMs: res.latencyMs, usageMetadata: res.usageMetadata };
+  return { ...res.data, model: res.model, attempts: res.attempts, failedOver: res.failedOver, latencyMs: res.latencyMs, usageMetadata: res.usageMetadata };
 }
 
 export async function generateFlashcards({
@@ -124,6 +128,7 @@ export async function generateFlashcards({
   signal,
   client = null,
   model = null,
+  fallbackModels,
   timeoutMs = 30_000,
 }) {
   const noteContext = buildCompactNoteContext({ title, learningPlan, sceneJson, sourceFile });
@@ -143,12 +148,13 @@ export async function generateFlashcards({
     jsonSchema: companionJsonSchema(FlashcardsOutputSchema),
     repairLabel: "flashcards",
     thinkingLevel: "MINIMAL",
+    fallbackModels,
     signal,
     client,
     model,
     timeoutMs,
   });
-  return { ...res.data, model: res.model, latencyMs: res.latencyMs, usageMetadata: res.usageMetadata };
+  return { ...res.data, model: res.model, attempts: res.attempts, failedOver: res.failedOver, latencyMs: res.latencyMs, usageMetadata: res.usageMetadata };
 }
 
 export async function generateRevisionGuide({
@@ -159,6 +165,7 @@ export async function generateRevisionGuide({
   signal,
   client = null,
   model = null,
+  fallbackModels,
   timeoutMs = 30_000,
 }) {
   const noteContext = buildCompactNoteContext({ title, learningPlan, sceneJson, sourceFile });
@@ -178,12 +185,13 @@ export async function generateRevisionGuide({
     jsonSchema: companionJsonSchema(RevisionGuideOutputSchema),
     repairLabel: "revision guide",
     thinkingLevel: "MINIMAL",
+    fallbackModels,
     signal,
     client,
     model,
     timeoutMs,
   });
-  return { ...res.data, model: res.model, latencyMs: res.latencyMs, usageMetadata: res.usageMetadata };
+  return { ...res.data, model: res.model, attempts: res.attempts, failedOver: res.failedOver, latencyMs: res.latencyMs, usageMetadata: res.usageMetadata };
 }
 
 export async function askNote({
@@ -195,6 +203,7 @@ export async function askNote({
   signal,
   client = null,
   model = null,
+  fallbackModels,
   timeoutMs = 25_000,
 }) {
   const cleanQuestion = String(question ?? "").trim().slice(0, 1000);
@@ -222,12 +231,13 @@ export async function askNote({
     jsonSchema: companionJsonSchema(AskNoteOutputSchema),
     repairLabel: "ask note answer",
     thinkingLevel: "MINIMAL",
+    fallbackModels,
     signal,
     client,
     model,
     timeoutMs,
   });
-  return { ...res.data, model: res.model, latencyMs: res.latencyMs, usageMetadata: res.usageMetadata };
+  return { ...res.data, model: res.model, attempts: res.attempts, failedOver: res.failedOver, latencyMs: res.latencyMs, usageMetadata: res.usageMetadata };
 }
 
 export async function regenerateSectionPlan({
@@ -241,6 +251,7 @@ export async function regenerateSectionPlan({
   signal,
   client = null,
   model = null,
+  fallbackModels,
   timeoutMs = 30_000,
 }) {
   const targetSection = (learningPlan?.sections ?? []).find((s) => s.id === sectionId);
@@ -281,6 +292,7 @@ export async function regenerateSectionPlan({
     jsonSchema: companionJsonSchema(SectionRegenerateOutputSchema),
     repairLabel: "regenerated section plan",
     thinkingLevel: "LOW",
+    fallbackModels,
     signal,
     client,
     model,
@@ -288,5 +300,5 @@ export async function regenerateSectionPlan({
   });
   // Enforce caller's immutable section id even if the model altered casing.
   const section = { ...res.data, id: sectionId };
-  return { section, model: res.model, latencyMs: res.latencyMs, usageMetadata: res.usageMetadata };
+  return { section, model: res.model, attempts: res.attempts, failedOver: res.failedOver, latencyMs: res.latencyMs, usageMetadata: res.usageMetadata };
 }

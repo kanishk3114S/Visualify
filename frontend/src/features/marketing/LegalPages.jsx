@@ -49,6 +49,14 @@ export function PrivacyPage() {
           versions, jobs, and study artifacts.
         </p>
       </section>
+      <section>
+        <h2>Open items pending legal counsel sign-off</h2>
+        <ul>
+          <li>Final numeric retention schedules for operational telemetry (`usage_events`), anonymized aggregate product events, and PITR backup expiration windows.</li>
+          <li>Confirmed Google Gemini API data-processing region and paid-tier zero-data-retention DPA addendum details.</li>
+          <li>Exact statutory SLA period for secondary backup purge and regional privacy contact address prior to general public availability.</li>
+        </ul>
+      </section>
     </LegalPage>
   );
 }

@@ -10,6 +10,7 @@ import {
   loadWorkerEnv,
   resolveBrowserPath,
 } from "../config/env.js";
+import { globalRenderSemaphore } from "./renderSemaphore.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -60,20 +61,25 @@ async function runCliCommand({
   signal,
   execFn = execFileAsync,
   nodeExecutable = process.execPath,
+  semaphore = globalRenderSemaphore,
 }) {
   try {
-    const { stdout, stderr } = await execFn(nodeExecutable, [cliScriptPath, ...args], {
-      cwd,
-      timeout: timeoutMs,
-      maxBuffer: MAX_BUFFER_BYTES,
-      windowsHide: true,
-      shell: false,
-      signal,
-      env: {
-        ...process.env,
-        EXCALIDRAW_NO_UPDATE_NOTIFIER: "1",
-      },
-    });
+    const execWork = () =>
+      execFn(nodeExecutable, [cliScriptPath, ...args], {
+        cwd,
+        timeout: timeoutMs,
+        maxBuffer: MAX_BUFFER_BYTES,
+        windowsHide: true,
+        shell: false,
+        signal,
+        env: {
+          ...process.env,
+          EXCALIDRAW_NO_UPDATE_NOTIFIER: "1",
+        },
+      });
+    const { stdout, stderr } = semaphore
+      ? await semaphore.run(execWork, { signal })
+      : await execWork();
     return { stdout: String(stdout || ""), stderr: String(stderr || "") };
   } catch (err) {
     if (err?.name === "AbortError") {
@@ -138,6 +144,7 @@ export async function convertMermaidToExcalidraw({
   signal,
   cliScriptPath,
   execFn,
+  semaphore,
   tempPrefix = "visualify-mmd-",
 }) {
   if (typeof mermaidSource !== "string" || !mermaidSource.trim()) {
@@ -175,6 +182,7 @@ export async function convertMermaidToExcalidraw({
       timeoutMs: timeoutMs + 5000,
       signal,
       execFn,
+      semaphore,
     });
 
     const rawScene = await fs.readFile(outputPath, "utf8");
@@ -234,6 +242,7 @@ export async function renderScene({
   signal,
   cliScriptPath,
   execFn,
+  semaphore,
   tempPrefix = "visualify-render-",
 }) {
   if (!sceneJson || !Array.isArray(sceneJson.elements)) {
@@ -287,6 +296,7 @@ export async function renderScene({
       timeoutMs: timeoutMs + 5000,
       signal,
       execFn,
+      semaphore,
     });
 
     const buffer = await fs.readFile(outputPath);

@@ -1,0 +1,90 @@
+services:
+  - type: keyvalue
+    name: visualify-redis
+    plan: free
+    ipAllowList: []
+
+  - type: web
+    name: visualify-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerCommand: node backend/src/server.js
+    healthCheckPath: /healthz
+    autoDeploy: false
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PROCESS_ROLE
+        value: api
+      - key: TRUST_PROXY
+        value: "true"
+      - key: RENDER_CONCURRENCY
+        value: "2"
+      - key: SHUTDOWN_GRACE_MS
+        value: "25000"
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: visualify-redis
+          property: connectionString
+      - key: FRONTEND_ORIGIN
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_PUBLISHABLE_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        sync: false
+      - key: GEMINI_FALLBACK_MODELS
+        sync: false
+      - key: GENERATION_LIMIT_MONTHLY
+        sync: false
+      - key: ADMIN_USER_IDS
+        sync: false
+      - key: SENTRY_DSN
+        sync: false
+
+  - type: worker
+    name: visualify-worker
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerCommand: node backend/src/worker.js
+    autoDeploy: false
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PROCESS_ROLE
+        value: worker
+      - key: WORKER_HEALTH_PORT
+        value: "5001"
+      - key: RENDER_CONCURRENCY
+        value: "2"
+      - key: SHUTDOWN_GRACE_MS
+        value: "25000"
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: visualify-redis
+          property: connectionString
+      - key: FRONTEND_ORIGIN
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_PUBLISHABLE_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        sync: false
+      - key: GEMINI_FALLBACK_MODELS
+        sync: false
+      - key: GENERATION_LIMIT_MONTHLY
+        sync: false
+      - key: SENTRY_DSN
+        sync: false

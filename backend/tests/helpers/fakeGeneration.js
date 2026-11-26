@@ -73,14 +73,14 @@ export class InMemoryJobStore {
     if (this.fail[op]) throw Object.assign(new Error(`${op} failed`), { status: 502, code: "DATABASE_ERROR", expose: true });
   }
 
-  async insertJob({ ownerId, inputType = "prompt", inputText = null, sourceFileId = null, pageRange = null, settings, retryOf = null, attemptCount = 1 }) {
+  async insertJob({ id = null, ownerId, inputType = "prompt", inputText = null, sourceFileId = null, pageRange = null, settings, retryOf = null, attemptCount = 1 }) {
     this.#maybeFail("insert");
     if ([...this.rows.values()].some((r) => r.owner_id === ownerId && ACTIVE_STATUSES.includes(r.status))) {
       throw new ActiveJobExistsError();
     }
     const now = new Date().toISOString();
     const row = {
-      id: randomUUID(),
+      id: id ?? randomUUID(),
       owner_id: ownerId,
       input_type: inputType,
       input_text: inputText,
@@ -141,6 +141,11 @@ export class InMemoryJobStore {
 
   getJobStatus(args) {
     return this.getJob(args);
+  }
+
+  async getJobForRunner(jobId) {
+    const row = this.rows.get(jobId);
+    return row ? structuredClone(row) : null;
   }
 
   async findActiveJob(ownerId) {
@@ -265,12 +270,12 @@ export function createFakePipelineDeps(store = null) {
   return deps;
 }
 
-export function createTestGenerationStack({ config, logger, enabled = true, concurrency = 2, heartbeatMs = 50, generationOverrides = {}, supabaseState = null, usageService = null } = {}) {
+export function createTestGenerationStack({ config, logger, enabled = true, concurrency = 2, heartbeatMs = 50, generationOverrides = {}, supabaseState = null, usageService = null, analyticsService = null } = {}) {
   const store = new InMemoryJobStore(supabaseState);
   const bus = new JobEventBus();
   const queue = new InProcessQueue({ concurrency, logger });
   const pipelineDeps = createFakePipelineDeps(store);
   const cfg = { ...config, generation: { ...config.generation, enabled, ...generationOverrides } };
-  const service = createGenerationService({ config: cfg, store, queue, bus, pipelineDeps, usageService, logger });
+  const service = createGenerationService({ config: cfg, store, queue, bus, pipelineDeps, usageService, analyticsService, logger });
   return { service, store, bus, queue, pipelineDeps, heartbeatMs };
 }

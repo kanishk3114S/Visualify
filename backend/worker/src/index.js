@@ -8,6 +8,10 @@ export {
   generateStructuredJson,
   GeminiPlannerError,
   PROMPT_VERSION,
+  DEFAULT_GEMINI_MODEL,
+  DEFAULT_FALLBACK_MODEL,
+  SECONDARY_FALLBACK_MODEL,
+  resolveThinkingConfig,
   wrapUntrustedInput,
   wrapUntrustedDocument,
   buildPlannerContents,
@@ -60,5 +64,22 @@ export {
   SECTION_ID_SEPARATOR,
 } from "./adapters/sceneComposer.js";
 export { VISUAL_STYLES, SEMANTIC_PALETTE, resolveDiagramStyle, styleConvertedScene } from "./adapters/diagramTheme.js";
-export { CliRendererError, renderScene, imageDimensions } from "./renderer/cliRenderer.js";
-export { loadWorkerEnv, getGeminiConfig, resolveBrowserPath, getCliRenderTimeoutMs } from "./config/env.js";
+export { CliRendererError, convertMermaidToExcalidraw, renderScene, imageDimensions } from "./renderer/cliRenderer.js";
+export {
+  createRenderSemaphore,
+  globalRenderSemaphore,
+  configureRenderConcurrency,
+} from "./renderer/renderSemaphore.js";
+export {
+  DEFAULT_RENDER_CONCURRENCY,
+  MAX_RENDER_CONCURRENCY,
+  MAX_FALLBACK_MODELS,
+  GEMINI_MODEL_NAME_RE,
+  parseFallbackModels,
+  getDefaultFallbackModels,
+  loadWorkerEnv,
+  getGeminiConfig,
+  resolveBrowserPath,
+  getCliRenderTimeoutMs,
+  getRenderConcurrency,
+} from "./config/env.js";

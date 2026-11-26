@@ -1,0 +1,72 @@
+[
+  {
+    "id": "prompt-01-http-sequence",
+    "domain": "networking",
+    "expectedVisualType": "sequence",
+    "title": "TLS 1.3 handshake exchange",
+    "prompt": "Explain the chronological message exchange between a browser client and a web server during a TLS 1.3 handshake."
+  },
+  {
+    "id": "prompt-02-oauth-sequence",
+    "domain": "programming",
+    "expectedVisualType": "sequence",
+    "title": "OAuth 2.0 Authorization Code flow",
+    "prompt": "Trace the step-by-step messages passed among User, React App, Auth Server, and Resource API in OAuth 2.0 Authorization Code flow."
+  },
+  {
+    "id": "prompt-03-web-history-timeline",
+    "domain": "history",
+    "expectedVisualType": "timeline",
+    "title": "Evolution of HTTP protocols",
+    "prompt": "Create a chronological timeline showing major milestones from HTTP/0.9 in 1991 through HTTP/1.1, HTTP/2, and HTTP/3."
+  },
+  {
+    "id": "prompt-04-dna-history-timeline",
+    "domain": "biology",
+    "expectedVisualType": "timeline",
+    "title": "Timeline of genetics discoveries",
+    "prompt": "Show the chronological milestones in genetics from Mendel's pea experiments in 1865 to Avery-MacLeod-McCarty, Watson & Crick, and CRISPR."
+  },
+  {
+    "id": "prompt-05-sql-vs-nosql",
+    "domain": "databases",
+    "expectedVisualType": "comparison",
+    "title": "B-Tree index vs LSM-Tree index",
+    "prompt": "Compare B-Tree storage engines and LSM-Tree storage engines across write amplification, read latency, compaction, and ideal workloads."
+  },
+  {
+    "id": "prompt-06-mitosis-vs-meiosis",
+    "domain": "biology",
+    "expectedVisualType": "comparison",
+    "title": "Mitosis vs Meiosis",
+    "prompt": "Compare mitosis and meiosis side by side across chromosome ploidy, number of divisions, genetic variation, and biological purpose."
+  },
+  {
+    "id": "prompt-07-compiler-process",
+    "domain": "programming",
+    "expectedVisualType": "flowchart",
+    "title": "Compiler pipeline stages",
+    "prompt": "Show the step-by-step compilation process from source code through lexer, parser, semantic check, IR optimizer, and machine code output."
+  },
+  {
+    "id": "prompt-08-query-exec-process",
+    "domain": "databases",
+    "expectedVisualType": "flowchart",
+    "title": "SQL query execution flow",
+    "prompt": "Diagram the processing workflow of a SQL query from parser, planner, cost optimizer, executor decision on index vs sequential scan, and result rows."
+  },
+  {
+    "id": "prompt-09-cell-mindmap",
+    "domain": "biology",
+    "expectedVisualType": "mindmap",
+    "title": "Eukaryotic cell organelles concept map",
+    "prompt": "Create a concept mind map organizing major organelles of a eukaryotic cell (nucleus, mitochondria, ER, Golgi, lysosomes) and their roles."
+  },
+  {
+    "id": "prompt-10-acid-mindmap",
+    "domain": "databases",
+    "expectedVisualType": "mindmap",
+    "title": "ACID database properties mind map",
+    "prompt": "Build a concept mind map explaining ACID properties in relational databases (Atomicity, Consistency, Isolation levels, Durability via WAL)."
+  }
+]
